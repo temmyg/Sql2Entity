@@ -19,6 +19,7 @@ public class DIF_ASCAP18Entity {
 	public void setId(int Id) {
 		this.Id = Id
 	}
+
 	@DataField(pos = 1)
 	private String assetCode;
 	@DataField(pos = 2)

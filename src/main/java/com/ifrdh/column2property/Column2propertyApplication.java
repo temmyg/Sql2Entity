@@ -32,7 +32,8 @@ public class Column2propertyApplication implements CommandLineRunner{
 	}
 
 	public void run(String[] args) throws Exception{
-		content = readLines(env.getProperty("sourceFile"));
+		readLines(env.getProperty("sourceFolder") + "\\" + env.getProperty("sourceFile"));
+
 		writeContent();
 
 //		String srcFolder = env.getProperty("sourceFolder");
@@ -40,24 +41,23 @@ public class Column2propertyApplication implements CommandLineRunner{
 //		if(dir.isDirectory()){
 //			File[] files = dir.listFiles();
 //		}
-
-
-		writeContent();
+//
+//		writeContent();
 	}
 
-	public ArrayList<String> readLines(String fileName) throws Exception{
+	public void readLines(String fileName) throws Exception{
 		FileReader fr = null;
 		BufferedReader br = null;
-		ArrayList<String> lines = new ArrayList<String>();
+		// ArrayList<String> lines = new ArrayList<String>();
 
-		lines.add("package com.cppib.ifrdh.entity;");
-		lines.add("");
-		lines.add("import org.apache.camel.dataformat.bindy.annotation.CsvRecord;");
-		lines.add("import org.apache.camel.dataformat.bindy.annotation.DataField;");
-		lines.add("import javax.persistence.*;");
-		lines.add("");
-		lines.add("@CsvRecord(separator = \"\\\\|\", autospanLine = true)");
-		lines.add("@Entity");
+		content.add("package com.cppib.ifrdh.entity;");
+		content.add("");
+		content.add("import org.apache.camel.dataformat.bindy.annotation.CsvRecord;");
+		content.add("import org.apache.camel.dataformat.bindy.annotation.DataField;");
+		content.add("import javax.persistence.*;");
+		content.add("");
+		content.add("@CsvRecord(separator = \"\\\\|\", autospanLine = true)");
+		content.add("@Entity");
 
 		try {
 			fr = new FileReader(fileName);
@@ -76,18 +76,18 @@ public class Column2propertyApplication implements CommandLineRunner{
 					if(tableName!=null)
 					{
 						tableName = StringUtils.capitalize(tableName);
-						lines.add(String.format("@Table(name=\"%s\")", tableName));
+						content.add(String.format("@Table(name=\"%s\")", tableName));
 						String className = tableName + "Entity";
 						destFileName = className + ".java";
-						lines.add(String.format("public class %s %s", className, "{"));
-						lines.add("");
-						lines.add(tabs(1) + "int Id");
-						lines.add("");
-						lines.add(tabs(1) + "@Id");
-						lines.add(tabs(1) + "@GeneratedValue(strategy= GenerationType.AUTO)");
-						lines.add(generateGetter("Id", "int", 1));
-						lines.add(generateSetter("Id", "int", 1));
-						lines.add("");
+						content.add(String.format("public class %s %s", className, "{"));
+						content.add("");
+						content.add(tabs(1) + "int Id");
+						content.add("");
+						content.add(tabs(1) + "@Id");
+						content.add(tabs(1) + "@GeneratedValue(strategy= GenerationType.AUTO)");
+						content.add(generateGetter("Id", "int", 1));
+						content.add(generateSetter("Id", "int", 1));
+						content.add("");
 						continue;
 					}
 					else
@@ -112,14 +112,14 @@ public class Column2propertyApplication implements CommandLineRunner{
 						String dataType = matcher.group();
 						String javaDataType = findJavaDataType(dataType);
 
-						lines.add(String.format("\t@DataField(pos = %d)", propCount));
-						lines.add(String.format("\tprivate %s %s;", javaDataType, prop));
+						content.add(String.format("\t@DataField(pos = %d)", propCount));
+						content.add(String.format("\tprivate %s %s;", javaDataType, prop));
 					} else
 						continue;
 
 				}
 			}
-			lines.add(String.format("} %n"));
+			content.add(String.format("} %n"));
 		}
 		catch (Exception e){
 
@@ -128,7 +128,6 @@ public class Column2propertyApplication implements CommandLineRunner{
 			fr.close();
 			br.close();
 		}
-		return lines;
 	}
 
 	public void writeContent() throws Exception {
