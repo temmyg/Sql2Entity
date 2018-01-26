@@ -3,15 +3,13 @@ package com.ifrdh.column2property;
 
 import org.omg.CORBA.Environment;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,27 +20,51 @@ public class Column2propertyApplication implements CommandLineRunner{
 	@Autowired
 	org.springframework.core.env.Environment env;
 
+	@Autowired
+	@Qualifier("deleteFileWriter")
+	FileWriter deleteFileWriter;
+
+	@Autowired
+	@Qualifier("removeFileWriter")
+	FileWriter removeTableFileWriter;
+
 	ArrayList<String> content = new ArrayList<String>();
 
 	final String newLine = System.getProperty("line.separator");
 	String destFileName;
+	FileOutputStream outputStream;
+
+	String tableName;
 
 	public static void main(String[] args) {
 		SpringApplication.run(Column2propertyApplication.class, args);
 	}
 
 	public void run(String[] args) throws Exception{
-		readLines(env.getProperty("sourceFolder") + "\\" + env.getProperty("sourceFile"));
 
-		writeContent();
+		String srcFolder = env.getProperty("sourceFolder");
+		File dir = new File(srcFolder);
 
-//		String srcFolder = env.getProperty("sourceFolder");
-//		File dir = new File(srcFolder);
-//		if(dir.isDirectory()){
-//			File[] files = dir.listFiles();
-//		}
-//
-//		writeContent();
+		if(dir.isDirectory()){
+
+			outputStream = new FileOutputStream(env.getProperty("combinedScriptFileName"));
+
+			File[] files = dir.listFiles();
+			for(File file : files){
+
+				makeCodeFile(file.getPath());
+				content.clear();
+
+				removeTableScript();
+				genDeleteScript();
+				generateCombinedScript(file);
+
+			}
+
+			closeCombined();
+			deleteFileWriter.close();
+			removeTableFileWriter.close();
+		}
 	}
 
 	public void readLines(String fileName) throws Exception{
@@ -75,13 +97,14 @@ public class Column2propertyApplication implements CommandLineRunner{
 					String tableName = matcher.group();
 					if(tableName!=null)
 					{
+						this.tableName = tableName;
 						tableName = StringUtils.capitalize(tableName);
 						content.add(String.format("@Table(name=\"%s\")", tableName));
 						String className = tableName + "Entity";
 						destFileName = className + ".java";
 						content.add(String.format("public class %s %s", className, "{"));
 						content.add("");
-						content.add(tabs(1) + "int Id");
+						content.add(tabs(1) + "int Id;");
 						content.add("");
 						content.add(tabs(1) + "@Id");
 						content.add(tabs(1) + "@GeneratedValue(strategy= GenerationType.AUTO)");
@@ -112,8 +135,13 @@ public class Column2propertyApplication implements CommandLineRunner{
 						String dataType = matcher.group();
 						String javaDataType = findJavaDataType(dataType);
 
+						if(javaDataType.indexOf("Date") != -1)
+							content.add(2, "import java.util.Date;");
 						content.add(String.format("\t@DataField(pos = %d)", propCount));
 						content.add(String.format("\tprivate %s %s;", javaDataType, prop));
+						content.add(generateGetter(prop, javaDataType, 1));
+						content.add(generateSetter(prop, javaDataType, 1));
+						content.add("");
 					} else
 						continue;
 
@@ -131,9 +159,17 @@ public class Column2propertyApplication implements CommandLineRunner{
 	}
 
 	public void writeContent() throws Exception {
-		String destFile = env.getProperty("destFile");
 
-		destFile = destFileName == null ? destFile : destFileName;
+		String destFolder = env.getProperty("destFolder");
+
+		if(!new File(destFolder).exists())
+			throw new FileNotFoundException();
+
+		String dFileName = env.getProperty("destFile");
+		String destFile = dFileName == null ? "sourceProperty" : dFileName;
+
+		destFile = destFolder + "\\" + (destFileName == null ? destFile : destFileName);
+
 		FileWriter fw = new FileWriter(destFile);
 
 		for (String line : content) {
@@ -152,7 +188,7 @@ public class Column2propertyApplication implements CommandLineRunner{
 		sb.append("() {");
 		sb.append(newLine);
 		sb.append(tabs(initialTabNum+1));
-		sb.append("return " + propertyName);
+		sb.append("return " + propertyName + ";");
 		sb.append(newLine);
 		sb.append(tabs(initialTabNum));
 		sb.append("}");
@@ -167,25 +203,41 @@ public class Column2propertyApplication implements CommandLineRunner{
 		sb.append("(" + type + " " + propertyName + ") {");
 		sb.append(newLine);
 		sb.append(tabs(initialTabNum + 1));
-		sb.append("this." + propertyName + " = " + propertyName);
+		sb.append("this." + propertyName + " = " + propertyName + ";");
 		sb.append(newLine);
 		sb.append(tabs(initialTabNum));
 		sb.append("}");
 		return sb.toString();
 	}
 
-	private String tabs(int num) {
+	private void generateCombinedScript(File file) throws Exception {
+
+		byte[] buf = new byte[1024];
+		FileInputStream inputStream = new FileInputStream(file);
+		int count = 0;
+		while ((count = inputStream.read(buf))>=0){
+			outputStream.write(buf, 0, count);
+			outputStream.flush();
+		}
+
 		StringBuilder sb = new StringBuilder();
-		for(int i=0; i<num; i++)
-			sb.append("\t");
-		return sb.toString();
+		String addId = String.format("%n alter table %s add Id bigint identity (1, 1) %n", tableName);
+		String addPrimaryKey = String.format("%n alter table %s add primary key (Id) %n", tableName);
+		outputStream.write(addId.getBytes());
+		outputStream.write(addPrimaryKey.getBytes());
+		outputStream.flush();
+		inputStream.close();
+	}
+
+	private void closeCombined() throws Exception{
+		outputStream.close();
 	}
 
 	private String findJavaDataType(String sqlDataType){
 		String resultType = null;
 		switch (sqlDataType) {
 			case "float":
-				resultType = "double";
+				resultType = "Double";
 				break;
 			case "datetime":
 				resultType = "Date";
@@ -198,5 +250,26 @@ public class Column2propertyApplication implements CommandLineRunner{
 				resultType = "String";
 		}
 		return resultType;
+	}
+
+	private void genDeleteScript() throws Exception{
+		deleteFileWriter.append(String.format("truncate table %s %n", tableName));
+	}
+
+	private void removeTableScript() throws Exception{
+		removeTableFileWriter.append(String.format("drop table %s %n", tableName));
+	}
+
+	public void makeCodeFile(String fileName) throws Exception{
+		readLines(fileName);
+		writeContent();
+	}
+
+
+	private String tabs(int num) {
+		StringBuilder sb = new StringBuilder();
+		for(int i=0; i<num; i++)
+			sb.append("\t");
+		return sb.toString();
 	}
 }
