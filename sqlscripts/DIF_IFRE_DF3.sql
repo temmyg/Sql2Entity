@@ -1,0 +1,85 @@
+USE [Wellness]
+GO
+
+/****** Object:  Table [dbo].[DIF_IFRE_DF3]    Script Date: 25/01/2018 4:59:45 PM ******/
+
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[DIF_IFRE_DF3](
+	[ASSETCODE] [nvarchar](255) NULL,
+	[ASSETCODE_D] [nvarchar](255) NULL,
+	[Investment_Structure] [nvarchar](255) NULL,
+	[Investment_Strategy] [nvarchar](255) NULL,
+	[Geographic_Focus] [nvarchar](255) NULL,
+	[Sector_Focus] [nvarchar](255) NULL,
+	[Funding_Benchmark] [nvarchar](255) NULL,
+	[Business_Unit] [nvarchar](255) NULL,
+	[Currency] [nvarchar](255) NULL,
+	[Performance_Benchmark] [nvarchar](255) NULL,
+	[Compensation_Benchmark] [nvarchar](255) NULL,
+	[Hold_Period] [nvarchar](255) NULL,
+	[Investment_Manager] [nvarchar](255) NULL,
+	[Commitment] [float] NULL,
+	[Allocation] [float] NULL,
+	[Gross_Invested_Equity] [float] NULL,
+	[Return_of_Capital] [float] NULL,
+	[Unfunded_Commitment_CAD] [float] NULL,
+	[Asset_Carrying_Value] [float] NULL,
+	[Debt_Carrying_Value] [float] NULL,
+	[Equity_Carrying_Value] [float] NULL,
+	[Exposure] [float] NULL,
+	[Occupancy] [float] NULL,
+	[Total_Area] [float] NULL,
+	[Sold_Investments] [nvarchar](255) NULL,
+	[Developed_vs_Emerging] [nvarchar](255) NULL,
+	[Temporary_Return_of_Capital] [float] NULL,
+	[Permanent_Return_of_Capital] [float] NULL,
+	[MR_Sector] [nvarchar](255) NULL,
+	[Equity_Book_Value] [float] NULL,
+	[Expenses_Inside_Commitment] [float] NULL,
+	[Capital_Additions] [float] NULL,
+	[Investment_Aggregation_Grouped_Entity] [nvarchar](255) NULL,
+	[F34] [nvarchar](255) NULL,
+	[F35] [nvarchar](255) NULL,
+	[F36] [nvarchar](255) NULL,
+	[F37] [nvarchar](255) NULL,
+	[F38] [nvarchar](255) NULL,
+	[F39] [nvarchar](255) NULL,
+	[F40] [nvarchar](255) NULL,
+	[F41] [nvarchar](255) NULL,
+	[F42] [nvarchar](255) NULL,
+	[F43] [nvarchar](255) NULL,
+	[F44] [nvarchar](255) NULL,
+	[F45] [nvarchar](255) NULL,
+	[F46] [nvarchar](255) NULL,
+	[F47] [nvarchar](255) NULL,
+	[F48] [nvarchar](255) NULL,
+	[F49] [nvarchar](255) NULL,
+	[F50] [nvarchar](255) NULL,
+	[F51] [nvarchar](255) NULL,
+	[F52] [nvarchar](255) NULL,
+	[F53] [nvarchar](255) NULL,
+	[F54] [nvarchar](255) NULL,
+	[F55] [nvarchar](255) NULL,
+	[F56] [nvarchar](255) NULL,
+	[F57] [nvarchar](255) NULL,
+	[F58] [nvarchar](255) NULL,
+	[F59] [nvarchar](255) NULL,
+	[F60] [nvarchar](255) NULL,
+	[F61] [nvarchar](255) NULL,
+	[F62] [nvarchar](255) NULL,
+	[F63] [nvarchar](255) NULL,
+	[F64] [nvarchar](255) NULL,
+	[F65] [nvarchar](255) NULL,
+	[F66] [nvarchar](255) NULL,
+	[F67] [nvarchar](255) NULL,
+	[F68] [nvarchar](255) NULL,
+	[F69] [nvarchar](255) NULL,
+	[ASOFDATE] [datetime] NULL
+) ON [PRIMARY]
+GO
+
