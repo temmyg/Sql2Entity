@@ -1,6 +1,9 @@
 package com.ifrdh.column2property;
 
 
+import com.ifrdh.column2property.models.NormalizationTablesSpecEntity;
+import com.ifrdh.column2property.normalization.NormalizationGenerator;
+import com.ifrdh.column2property.repositories.NormalizationTablesSpecRepo;
 import org.omg.CORBA.Environment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -11,6 +14,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,32 +32,49 @@ public class Column2propertyApplication implements CommandLineRunner{
 	@Qualifier("removeFileWriter")
 	FileWriter removeTableFileWriter;
 
-	ArrayList<String> content = new ArrayList<String>();
+	@Autowired
+	NormalizationGenerator normGen;
+
+	ArrayList<String> entityCodeContent = new ArrayList<String>();
+	ArrayList<String> originContent = new ArrayList<String>();
 
 	final String newLine = System.getProperty("line.separator");
 	String destFileName;
 	FileOutputStream outputStream;
 
+	FileOutputStream tablesScriptOutputStream;
+
 	String tableName;
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception{
 		SpringApplication.run(Column2propertyApplication.class, args);
 	}
 
-	public void run(String[] args) throws Exception{
+	public void run(String[] args) throws Exception {
+		stagingScriptsEntities_gen();
+
+		normGen.normalizationScriptsEntities_gen();
+	}
+
+	private void stagingScriptsEntities_gen() throws Exception {
 
 		String srcFolder = env.getProperty("sourceFolder");
 		File dir = new File(srcFolder);
 
-		if(dir.isDirectory()){
+		if(dir.isDirectory()) {
 
 			outputStream = new FileOutputStream(env.getProperty("combinedScriptFileName"));
+
+			tablesScriptOutputStream = new FileOutputStream(env.getProperty("snakeCasedColumnTableScript"));
 
 			File[] files = dir.listFiles();
 			for(File file : files){
 
+				originContent.clear();
+				entityCodeContent.clear();
+
 				makeCodeFile(file.getPath());
-				content.clear();
+				writeImprovedTablesGeneratingScripts();
 
 				removeTableScript();
 				genDeleteScript();
@@ -62,6 +83,8 @@ public class Column2propertyApplication implements CommandLineRunner{
 			}
 
 			closeCombined();
+			tablesScriptOutputStream.close();
+
 			deleteFileWriter.close();
 			removeTableFileWriter.close();
 		}
@@ -72,14 +95,14 @@ public class Column2propertyApplication implements CommandLineRunner{
 		BufferedReader br = null;
 		// ArrayList<String> lines = new ArrayList<String>();
 
-		content.add("package com.cppib.ifrdh.entity;");
-		content.add("");
-		content.add("import org.apache.camel.dataformat.bindy.annotation.CsvRecord;");
-		content.add("import org.apache.camel.dataformat.bindy.annotation.DataField;");
-		content.add("import javax.persistence.*;");
-		content.add("");
-		content.add("@CsvRecord(separator = \"\\\\|\", autospanLine = true)");
-		content.add("@Entity");
+		entityCodeContent.add("package com.cppib.ifrdh.entity;");
+		entityCodeContent.add("");
+		entityCodeContent.add("import org.apache.camel.dataformat.bindy.annotation.CsvRecord;");
+		entityCodeContent.add("import org.apache.camel.dataformat.bindy.annotation.DataField;");
+		entityCodeContent.add("import javax.persistence.*;");
+		entityCodeContent.add("");
+		entityCodeContent.add("@CsvRecord(separator = \"\\\\|\", autospanLine = true)");
+		entityCodeContent.add("@Entity");
 
 		try {
 			fr = new FileReader(fileName);
@@ -89,6 +112,7 @@ public class Column2propertyApplication implements CommandLineRunner{
 			Pattern pattern;
 			Matcher matcher;
 			while((line = br.readLine())!=null){
+				originContent.add(line);
 				// table name searching
 				if(line.indexOf("CREATE TABLE")!=-1){
 					pattern = Pattern.compile("(?<=\\[dbo\\]\\.\\[)\\w+(?=\\])");
@@ -99,18 +123,18 @@ public class Column2propertyApplication implements CommandLineRunner{
 					{
 						this.tableName = tableName;
 						tableName = StringUtils.capitalize(tableName);
-						content.add(String.format("@Table(name=\"%s\")", tableName));
+						entityCodeContent.add(String.format("@Table(name=\"%s\")", tableName));
 						String className = tableName + "Entity";
 						destFileName = className + ".java";
-						content.add(String.format("public class %s %s", className, "{"));
-						content.add("");
-						content.add(tabs(1) + "int Id;");
-						content.add("");
-						content.add(tabs(1) + "@Id");
-						content.add(tabs(1) + "@GeneratedValue(strategy= GenerationType.AUTO)");
-						content.add(generateGetter("Id", "int", 1));
-						content.add(generateSetter("Id", "int", 1));
-						content.add("");
+						entityCodeContent.add(String.format("public class %s %s", className, "{"));
+						entityCodeContent.add("");
+						entityCodeContent.add(tabs(1) + "int Id;");
+						entityCodeContent.add("");
+						entityCodeContent.add(tabs(1) + "@Id");
+						entityCodeContent.add(tabs(1) + "@GeneratedValue(strategy= GenerationType.AUTO)");
+						entityCodeContent.add(generateGetter("Id", "int", 1));
+						entityCodeContent.add(generateSetter("Id", "int", 1));
+						entityCodeContent.add("");
 						continue;
 					}
 					else
@@ -120,6 +144,7 @@ public class Column2propertyApplication implements CommandLineRunner{
 
 				// column searching
 				//pattern = Pattern.compile("(?<=\\t\\[)[a-zA-Z_0-9 ]+(?=\\]\\s)");
+				// match column name
 				pattern = Pattern.compile("(?<=\\t\\[)[a-zA-Z_0-9 ]+(?=\\]\\s)");
 				matcher = pattern.matcher(line);
 				if(matcher.find()) {
@@ -128,7 +153,7 @@ public class Column2propertyApplication implements CommandLineRunner{
 					if(prop.indexOf(" ")!=-1)
 						prop = prop.replace(' ','_');
 					prop = Character.toLowerCase(prop.charAt(0)) + prop.substring(1);
-
+					// match column sql type
 					pattern = Pattern.compile("(?<=\\]\\s\\[)[a-zA-Z_0-9 ]+(?=\\])");
 					matcher = pattern.matcher(line);
 					if (matcher.find()) {
@@ -136,18 +161,18 @@ public class Column2propertyApplication implements CommandLineRunner{
 						String javaDataType = findJavaDataType(dataType);
 
 						if(javaDataType.indexOf("Date") != -1)
-							content.add(2, "import java.util.Date;");
-						content.add(String.format("\t@DataField(pos = %d)", propCount));
-						content.add(String.format("\tprivate %s %s;", javaDataType, prop));
-						content.add(generateGetter(prop, javaDataType, 1));
-						content.add(generateSetter(prop, javaDataType, 1));
-						content.add("");
+							entityCodeContent.add(2, "import java.util.Date;");
+						entityCodeContent.add(String.format("\t@DataField(pos = %d)", propCount));
+						entityCodeContent.add(String.format("\tprivate %s %s;", javaDataType, prop));
+						entityCodeContent.add(generateGetter(prop, javaDataType, 1));
+						entityCodeContent.add(generateSetter(prop, javaDataType, 1));
+						entityCodeContent.add("");
 					} else
 						continue;
 
 				}
 			}
-			content.add(String.format("} %n"));
+			entityCodeContent.add(String.format("} %n"));
 		}
 		catch (Exception e){
 
@@ -172,7 +197,7 @@ public class Column2propertyApplication implements CommandLineRunner{
 
 		FileWriter fw = new FileWriter(destFile);
 
-		for (String line : content) {
+		for (String line : entityCodeContent) {
 				fw.append(line);
 				fw.append(newLine);
 		}
@@ -265,6 +290,59 @@ public class Column2propertyApplication implements CommandLineRunner{
 		writeContent();
 	}
 
+	public void writeImprovedTablesGeneratingScripts() throws Exception{
+		StringBuilder sb = new StringBuilder();
+
+		String tableSearch1 = "DIF_IFRE_DF2";
+		String columnSearch1 = "Investment Aggregation - Grouped Entity";
+		String tableSearch2 = "DIF_IFRE_DF2";
+		String columnSearch2 = "Allocations (TO BE CONVERTED)";
+
+		for(String line : originContent) {
+			String searchString = "Wellness";
+			if(line.contains(searchString))
+				line = line.replace(searchString, "IFRDH");
+
+			if(tableName.equals("DIF_IFRE_Assets") && line.contains("DevelopmentMarginPerc") || line.contains("PartnerOwnershipIL"))
+			{
+				// TODO: change type to float(53)
+				// String.format("%s%n");
+			}
+
+			if(tableName.equals(tableSearch2) && line.contains(columnSearch2)) {
+				// TODO:
+			}
+
+			if(tableName.equals(tableSearch1) && line.contains(columnSearch1)){
+				String[] splited = columnSearch1.split("\\s|-");
+				List<String> converted = new ArrayList<>();
+				for(int i = 0; i<=splited.length; i++) {
+					String part = splited[i];
+					if(part.length() > 4)
+						converted.add(part.replace("[","").trim());
+				}
+				int bgnIndex = line.indexOf(columnSearch1);
+				line = line.substring(0, bgnIndex) + String.join("_", converted) + line.substring(bgnIndex + columnSearch1.length());
+			}
+
+
+
+			Pattern pattern = Pattern.compile("(?<=\\t\\[)[a-zA-Z_0-9 ]+(?=\\]\\s)");
+			Matcher matcher = pattern.matcher(line);
+			String underScoredLines = null;
+			if (matcher.find()) {
+				String prop = matcher.group();
+				if (prop.indexOf(" ") != -1) {
+					prop = prop.replace(' ', '_');
+					underScoredLines = line.substring(0, matcher.start()) + prop + line.substring(matcher.end());
+				}
+			}
+			sb.append(String.format("%s%n", underScoredLines == null ? line : underScoredLines));
+		}
+
+		tablesScriptOutputStream.write(sb.toString().getBytes());
+		tablesScriptOutputStream.write("\r\n==========================================================================\r\n".getBytes());
+	}
 
 	private String tabs(int num) {
 		StringBuilder sb = new StringBuilder();

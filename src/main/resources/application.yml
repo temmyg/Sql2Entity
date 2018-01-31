@@ -1,0 +1,14 @@
+spring:
+  # Spring JDBC configuration
+  datasource:
+    url:      jdbc:sqlserver://localhost:1433;databaseName=IFRDH
+    username: sa
+    password: Passw0rd
+
+  jpa:
+    #hibernate:
+       #To be updated in real production usage!
+       #ddl-auto: create-drop
+
+    show-sql: false
+    database-platform: org.hibernate.dialect.SQLServer2012Dialect
