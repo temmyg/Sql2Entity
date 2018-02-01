@@ -51,5 +51,15 @@ public class NormalizationTablesSpecEntity {
 	public void setTable(NormTablesEntity table) {
 		this.table = table;
 	}
+
+//	@JoinColumn(name = "originalTable")
+//	@ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+//	public NormTablesEntity getTable() {
+//		return table;
+//	}
+//
+//	public void setTable(NormTablesEntity table) {
+//		this.table = table;
+//	}
 }
 

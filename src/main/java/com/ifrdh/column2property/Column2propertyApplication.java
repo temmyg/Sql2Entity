@@ -51,7 +51,7 @@ public class Column2propertyApplication implements CommandLineRunner{
 	}
 
 	public void run(String[] args) throws Exception {
-		stagingScriptsEntities_gen();
+		// stagingScriptsEntities_gen();
 
 		normGen.normalizationScriptsEntities_gen();
 	}
@@ -270,6 +270,9 @@ public class Column2propertyApplication implements CommandLineRunner{
 			case "varchar":
 			case "nvarchar":
 				resultType = "String";
+				break;
+			case "bit":
+				resultType = "Boolean";
 				break;
 			default:
 				resultType = "String";

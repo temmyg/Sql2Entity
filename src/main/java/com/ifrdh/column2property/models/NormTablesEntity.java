@@ -2,6 +2,7 @@ package com.ifrdh.column2property.models;
 
 import javax.persistence.*;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name="NormTables")
@@ -24,15 +25,28 @@ public class NormTablesEntity {
 		this.orderedId = orderedId;
 	}
 
-	private String isNormalizing;
-	public String getIsNormalizing() {
+	private Boolean isNormalizing;
+	public Boolean getIsNormalizing() {
 		return isNormalizing;
 	}
-	public void setIsNormalizing(String isNormalizing) {
+	public void setIsNormalizing(Boolean isNormalizing) {
 		this.isNormalizing = isNormalizing;
 	}
 
-	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, mappedBy = "table", targetEntity = NormalizationTablesSpecEntity.class)
-	List<NormalizationTablesSpecEntity> columns;
-} 
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, mappedBy = "table", targetEntity = NormalizationTablesSpecEntity.class)
+    private Set<NormalizationTablesSpecEntity> columns;
+
+
+//	private List<NormalizationTablesSpecEntity> columns;
+
+	//@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, mappedBy = "table", targetEntity = NormalizationTablesSpecEntity.class)
+//	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, mappedBy = "table")
+//	public List<NormalizationTablesSpecEntity> getColumns() {
+//	    return columns;
+//    }
+//
+//    public void setColumns(List<NormalizationTablesSpecEntity> columns) {
+//        this.columns = columns;
+//    }
+}
 
