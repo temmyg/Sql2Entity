@@ -33,7 +33,15 @@ public class NormTablesEntity {
 		this.isNormalizing = isNormalizing;
 	}
 
-    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, mappedBy = "table", targetEntity = NormalizationTablesSpecEntity.class)
+	private int ColumnNumberRequired;
+	public int getColumnNumberRequired() {
+		return ColumnNumberRequired;
+	}
+	public void setColumnNumberRequired(int columnNumberRequired) {
+		ColumnNumberRequired = columnNumberRequired;
+	}
+
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, mappedBy = "table", targetEntity = NormalizationTablesSpecEntity.class)
     private Set<NormalizationTablesSpecEntity> columns;
 
 

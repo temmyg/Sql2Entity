@@ -1,10 +1,9 @@
 package com.ifrdh.column2property;
 
 
-import com.ifrdh.column2property.models.NormalizationTablesSpecEntity;
 import com.ifrdh.column2property.normalization.NormalizationGenerator;
-import com.ifrdh.column2property.repositories.NormalizationTablesSpecRepo;
-import org.omg.CORBA.Environment;
+import com.ifrdh.column2property.requirement_auto_generate.RequirementDBAdaptor;
+import com.ifrdh.column2property.requirement_auto_generate.RequirementDBTablesGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
@@ -35,6 +34,9 @@ public class Column2propertyApplication implements CommandLineRunner{
 	@Autowired
 	NormalizationGenerator normGen;
 
+	@Autowired
+	RequirementDBTablesGenerator requirementTablesGenerator;
+
 	ArrayList<String> entityCodeContent = new ArrayList<String>();
 	ArrayList<String> originContent = new ArrayList<String>();
 
@@ -52,7 +54,8 @@ public class Column2propertyApplication implements CommandLineRunner{
 
 	public void run(String[] args) throws Exception {
 		// stagingScriptsEntities_gen();
-
+		RequirementDBAdaptor.process();
+		requirementTablesGenerator.makeTablesCreationScript();
 		normGen.normalizationScriptsEntities_gen();
 	}
 
