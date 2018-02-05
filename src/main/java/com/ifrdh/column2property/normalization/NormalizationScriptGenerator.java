@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.PrintStream;
@@ -38,8 +39,8 @@ public class NormalizationScriptGenerator {
 
     PrintStream createScriptStream;
 
-    @Autowired
-   // @Qualifier("normSizedWriter")
+    @Resource
+    @Qualifier("normSizedWriter")
     SizedBufferWriter sizedFileWriter;
     //FileOutputStream processOutputStream;
 

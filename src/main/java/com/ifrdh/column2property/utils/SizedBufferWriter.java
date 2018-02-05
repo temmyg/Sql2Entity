@@ -8,7 +8,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 
-@Component
 public class SizedBufferWriter {
 
     @Autowired
@@ -19,7 +18,7 @@ public class SizedBufferWriter {
     final private String newLine = System.getProperty("line.separator");
 
     @Autowired
-    public SizedBufferWriter(@Value("${normalizationScriptFile}") String fileName) throws Exception{
+    public SizedBufferWriter(String fileName) throws Exception{
         outputStream = new FileOutputStream(fileName);
     }
 
