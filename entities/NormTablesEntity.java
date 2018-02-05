@@ -39,13 +39,14 @@ public class NormTablesEntity {
 	}
 
 	@DataField(pos = 3)
-	private String isNormalizing;
-	public String getIsNormalizing() {
+	private Boolean isNormalizing;
+	public Boolean getIsNormalizing() {
 		return isNormalizing;
 	}
-	public void setIsNormalizing(String isNormalizing) {
+	public void setIsNormalizing(Boolean isNormalizing) {
 		this.isNormalizing = isNormalizing;
 	}
+
 
 } 
 

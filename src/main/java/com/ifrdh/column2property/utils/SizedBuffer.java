@@ -1,12 +1,14 @@
 package com.ifrdh.column2property.utils;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
 
 @Component
+@Scope("prototype")
 public class SizedBuffer {
     int capacity = 100;
     private byte[] buf = new byte[capacity];

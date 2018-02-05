@@ -9,6 +9,7 @@ import com.ifrdh.column2property.utils.SizedBuffer;
 import com.ifrdh.column2property.utils.SizedBufferWriter;
 import javafx.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -19,7 +20,7 @@ import java.io.PrintStream;
 import java.util.*;
 
 @Component
-public class NormalizationGenerator {
+public class NormalizationScriptGenerator {
 
     @Autowired
     NormalizationTablesSpecRepo tblSpecRepo;
@@ -33,35 +34,40 @@ public class NormalizationGenerator {
     @Value("${normalizationTableName}")
     String normTableName;
 
-    @Autowired
-    SizedBufferWriter sizedFileWriter;
-
     final private String newLine = System.getProperty("line.separator");
 
     PrintStream createScriptStream;
-    FileOutputStream processOutputStream;
+
+    @Autowired
+   // @Qualifier("normSizedWriter")
+    SizedBufferWriter sizedFileWriter;
+    //FileOutputStream processOutputStream;
 
     // column name, table name
     List<Pair<String, String>> uniColumnNames = new ArrayList<>();
 
-    public NormalizationGenerator() throws Exception {
+    public List<Pair<String, String>> getUniColumnNames() {
+        return uniColumnNames;
+    }
+
+    public NormalizationScriptGenerator() throws Exception {
 
     }
 
-    public void normalizationScriptsEntities_gen() throws Exception {
+    public void generateNormalizationScripts() throws Exception {
 
         createScriptStream = new PrintStream(env.getProperty("normalizeTablesCreation"));
-        processOutputStream = new FileOutputStream(env.getProperty("normalizationProcessScript"));
+        //processOutputStream = new FileOutputStream(env.getProperty("normalizationProcessScript"));
 
         List<NormalizationTablesSpecEntity> allColumns = tblSpecRepo.findAll();
         List<NormTablesEntity> tables = tblsRepo.findAll();
 
-        writeToCreateStream(allColumns, tables);
+        makeCreateTableScript(allColumns, tables);
         makePopulateNormTableScript(allColumns, tables);
 
     }
 
-    public void writeToCreateStream(List<NormalizationTablesSpecEntity> columnList, List<NormTablesEntity> tables) {
+    public void makeCreateTableScript(List<NormalizationTablesSpecEntity> columnList, List<NormTablesEntity> tables) {
         String tableName = tables.get(0).getTableName().trim();
 
         Map<String, Boolean> readColumns = new HashMap<>();
@@ -89,7 +95,7 @@ public class NormalizationGenerator {
                 if (columnName.equals("assetcode")){
                     continue;
                 }
-
+                // flag duplicate columnName to true
                 if(readColumns.containsKey(columnName)) {
                     if(!readColumns.get(columnName)) {
                         readColumns.remove(columnName);
@@ -102,6 +108,7 @@ public class NormalizationGenerator {
                 distinctColumnName = columnName + "$" + tableName;
 
                 uniColumnNames.add(new Pair<String, String>(distinctColumnName, tableName));
+
                 tempResult.add(new Pair<>(columnName, String.format("\t%s %s,", distinctColumnName, JavaTypeFinder.convertToSQLType(column.getDataType()))));
             }
         }
@@ -119,6 +126,8 @@ public class NormalizationGenerator {
             String line = elem.getValue();
             tableName = uniColumnNames.get(i).getValue();
             String rawColumnName = elem.getKey();
+
+            // if the column name has no duplicate
             if(readColumns.containsKey(rawColumnName) && !readColumns.get(rawColumnName)) {
                 int bgnIndex = line.indexOf("$");
                 int endIndex = line.indexOf(" ", bgnIndex);
@@ -127,7 +136,7 @@ public class NormalizationGenerator {
                 uniColumnNames.remove(i);
                 uniColumnNames.add(i, new Pair<String, String>(distinctColumnName, tableName));
             }
-            else {
+            else {  // has duplicate
                 line = line.replace("$", "_");
                 distinctColumnName = uniColumnNames.get(i).getKey().replace('$','_');
                 uniColumnNames.set(i, new Pair<String, String>(distinctColumnName, tableName));
@@ -149,6 +158,7 @@ public class NormalizationGenerator {
             }
         });
 
+        // Insert Statement
         writeInsertScript();
 
         // SELECT STATEMENT

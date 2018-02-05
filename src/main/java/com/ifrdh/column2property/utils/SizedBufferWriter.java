@@ -19,7 +19,7 @@ public class SizedBufferWriter {
     final private String newLine = System.getProperty("line.separator");
 
     @Autowired
-    public SizedBufferWriter(@Value("${normalizationProcessScript}") String fileName) throws Exception{
+    public SizedBufferWriter(@Value("${normalizationScriptFile}") String fileName) throws Exception{
         outputStream = new FileOutputStream(fileName);
     }
 

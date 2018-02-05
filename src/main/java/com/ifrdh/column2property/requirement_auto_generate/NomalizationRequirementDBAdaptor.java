@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
-public class RequirementDBAdaptor {
+public class NomalizationRequirementDBAdaptor {
 
     private static NormalizationTablesSpecRepo columnsRepo;
 

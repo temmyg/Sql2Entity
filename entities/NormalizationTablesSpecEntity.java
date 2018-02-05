@@ -47,14 +47,5 @@ public class NormalizationTablesSpecEntity {
 		this.dataType = dataType;
 	}
 
-	@DataField(pos = 4)
-	private String id;
-	public String getId() {
-		return id;
-	}
-	public void setId(String id) {
-		this.id = id;
-	}
-
 } 
 

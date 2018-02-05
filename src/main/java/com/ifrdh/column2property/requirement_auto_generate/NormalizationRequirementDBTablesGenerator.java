@@ -10,11 +10,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
+import javax.persistence.EntityManagerFactory;
 import java.io.PrintStream;
 import java.util.List;
 
 @Component
-public class RequirementDBTablesGenerator {
+public class NormalizationRequirementDBTablesGenerator {
     @Autowired
     NormalizationTablesSpecRepo tblSpecRepo;
 
@@ -23,6 +25,9 @@ public class RequirementDBTablesGenerator {
 
     @Autowired
     Environment env;
+
+    @Resource(name="entityManagerFactory")
+    private EntityManagerFactory entityManagerFactory;
 
     public void makeTablesCreationScript() throws Exception{
         PrintStream fileStream = new PrintStream(env.getProperty("requirementCombinedTableCreationScript"));
