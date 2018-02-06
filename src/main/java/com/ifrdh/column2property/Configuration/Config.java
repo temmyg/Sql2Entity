@@ -14,7 +14,7 @@ public class Config {
         return new SizedBufferWriter(fileName);
     }
 
-    @Bean(name = "enrichSizedWrite")
+    @Bean(name = "enrichSizedWriter")
     public SizedBufferWriter getEnrichWriter(@Value("${enrichmentScriptFile}")String fileName) throws Exception {
         return new SizedBufferWriter(fileName);
     }

@@ -3,11 +3,13 @@ package com.ifrdh.column2property.requirement_auto_generate;
 import com.ifrdh.column2property.models.EnrichmentRequirementEntity;
 import com.ifrdh.column2property.repositories.EnrichmentRequirementRepo;
 import com.ifrdh.column2property.utils.SpecialColumnNameTreator;
+import org.apache.commons.lang3.BooleanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Component
 public class EnrichRequirementDBAdaptor {
@@ -17,7 +19,7 @@ public class EnrichRequirementDBAdaptor {
 
     String columnSearch1 = "Investment Aggregation - Grouped Entity";
 
-    public void process(){
+    public void process() {
         List<EnrichmentRequirementEntity> alllines = repo.findAll();
         List<EnrichmentRequirementEntity> newEntities = new ArrayList<>();
 
@@ -27,29 +29,35 @@ public class EnrichRequirementDBAdaptor {
 //        newEnt.setIsCalculated(true);
 //        alllines.add(newEnt);
         int i1 = 0;
-        for(EnrichmentRequirementEntity enrichEntity : alllines){
+        String columnName, tableName;
+        for (EnrichmentRequirementEntity enrichEntity : alllines) {
             i1++;
-            String columnName = enrichEntity.getColumnName().trim();
+            // always lowercase
+            columnName = enrichEntity.getColumnName().trim().toLowerCase();
+            tableName = enrichEntity.getIFRETableName();
 
-            if(columnName.matches("(?i)assetcode")){
+            if (columnName.matches("(?i)assetcode")) {
                 String displayName = enrichEntity.getPresentationName();
-                if(displayName.toLowerCase().equals("asset"))
-                    columnName = "AssetCode_1";
-                else if(displayName.matches("(?i)Investment Level Entity"))
-                    columnName = "AssetCode_2";
-            }
-            else if(columnName.indexOf("/")!=-1){
+                if (displayName.toLowerCase().equals("asset")) {
+                    columnName = "assetCode_1";
+                    enrichEntity.setIsCalculated(true);
+                }
+                else if (displayName.matches("(?i)Investment Level Entity")) {
+                    columnName = "assetCode_2";
+                    enrichEntity.setIsCalculated(true);
+                }
+            } else if (columnName.indexOf("/") != -1) {
 
                 // special handling of ReportingCurrencyAL / ReportingCurrencyIL and CountryRegionIL / CountryRegionAL
                 String[] colNameArr = columnName.split("/");
                 List<EnrichmentRequirementEntity> newCols = new ArrayList<>();
                 EnrichmentRequirementEntity addCol;
                 String newName;
-                for(int i=0; i<colNameArr.length; i++){
+                for (int i = 0; i < colNameArr.length; i++) {
                     newName = colNameArr[i];
                     addCol = new EnrichmentRequirementEntity();
                     newName = newName.trim();
-                    addCol.setColumnName(newName);
+                    addCol.setColumnName(handleKnownDuplicateColName(newName, tableName));
                     addCol.setIFRETableName(enrichEntity.getIFRETableName());
                     addCol.setIsCalculated(false);
                     newCols.add(addCol);
@@ -57,21 +65,39 @@ public class EnrichRequirementDBAdaptor {
                 }
                 newEntities.addAll(newCols);
                 columnName = String.join("_", colNameArr);
+                enrichEntity.setIFRETableName("Calculated field");
                 enrichEntity.setIsCalculated(true);
-            }
-            else if(columnName.indexOf(columnSearch1)!=-1)
-            {
+            } else if (columnName.indexOf(columnSearch1) != -1) {
                 columnName = SpecialColumnNameTreator.case1(columnName, columnSearch1);
             }
-
-            if(columnName.indexOf(" ")!=-1)
-            {
-                columnName = columnName.replace(" ","_");
+            else if (columnName.indexOf("allocations")!=-1 && Pattern.compile("(?i)DIF_IFRE_DF2").matcher(tableName).find()){
+                columnName = "allocations_to_be_converted";
             }
-            enrichEntity.setColumnName(columnName);
+
+            if (columnName.indexOf(" ") != -1) {
+                columnName = columnName.replace(" ", "_");
+            }
+            enrichEntity.setColumnName(handleKnownDuplicateColName(columnName, tableName));
+            enrichEntity.setIsCalculated(BooleanUtils.isTrue(enrichEntity.getIsCalculated()));
         }
 
         alllines.addAll(newEntities);
         repo.save(alllines);
     }
+
+    // Special handling for column name of ASCAP18, ASCAP19, INVEQUIT AND INVEQUITA
+    private String handleKnownDuplicateColName(String colName, String tblName) {
+        tblName = tblName.trim().toUpperCase();
+        if (tblName.indexOf("ASCAP19") != -1 || Pattern.compile("INVEQUIT_A$").matcher(tblName).find()) {
+            if(!Pattern.compile("(?i)^acc_").matcher(colName).find())
+                colName = "acc_" + colName;
+        }
+        if (tblName.indexOf("ASCAP18") != -1 || Pattern.compile("INVEQUIT$").matcher(tblName).find()) {
+            if(!Pattern.compile("(?i)^cdn_").matcher(colName).find())
+                colName = "cdn_" + colName;
+        }
+
+        return colName;
+    }
+
 }

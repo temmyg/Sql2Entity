@@ -2,6 +2,7 @@ package com.ifrdh.column2property.utils;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -10,14 +11,23 @@ import java.io.OutputStream;
 
 public class SizedBufferWriter {
 
-    @Autowired
+
     private SizedBuffer buffer;
+
+    @Autowired
+    @Scope("prototype")
+    public void setSizedBuffer(SizedBuffer buffer){
+        this.buffer = buffer;
+    }
 
     private FileOutputStream outputStream;
 
     final private String newLine = System.getProperty("line.separator");
 
-    @Autowired
+    public SizedBufferWriter() throws Exception{
+
+    }
+
     public SizedBufferWriter(String fileName) throws Exception{
         outputStream = new FileOutputStream(fileName);
     }

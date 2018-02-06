@@ -2,7 +2,7 @@ package com.ifrdh.column2property.requirement_auto_generate;
 
 import com.ifrdh.column2property.models.NormalizationTablesSpecEntity;
 import com.ifrdh.column2property.repositories.NormTablesRepo;
-import com.ifrdh.column2property.repositories.NormalizationTablesSpecRepo;
+import com.ifrdh.column2property.repositories.StagingTablesSpecRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -11,10 +11,10 @@ import java.util.List;
 @Component
 public class NomalizationRequirementDBAdaptor {
 
-    private static NormalizationTablesSpecRepo columnsRepo;
+    private static StagingTablesSpecRepo columnsRepo;
 
     @Autowired
-    public void setColumnsRepo(NormalizationTablesSpecRepo repo) {
+    public void setColumnsRepo(StagingTablesSpecRepo repo) {
         columnsRepo = repo;
     }
 
@@ -33,6 +33,7 @@ public class NomalizationRequirementDBAdaptor {
             columnName = columnName.replace(' ', '_');
 
             tableName = column.getTable().getTableName();
+            //assetcode going to be not included in normalization table, it is going to be skiped in
             if (columnName.toLowerCase() != "assetcode") {
                 switch (tableName.toUpperCase()) {
                     case "IFRE_INVEQUIT":

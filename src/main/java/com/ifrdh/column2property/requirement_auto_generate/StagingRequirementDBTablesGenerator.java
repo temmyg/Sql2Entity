@@ -4,7 +4,7 @@ package com.ifrdh.column2property.requirement_auto_generate;
 import com.ifrdh.column2property.models.NormTablesEntity;
 import com.ifrdh.column2property.models.NormalizationTablesSpecEntity;
 import com.ifrdh.column2property.repositories.NormTablesRepo;
-import com.ifrdh.column2property.repositories.NormalizationTablesSpecRepo;
+import com.ifrdh.column2property.repositories.StagingTablesSpecRepo;
 import com.ifrdh.column2property.utils.JavaTypeFinder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
@@ -16,9 +16,9 @@ import java.io.PrintStream;
 import java.util.List;
 
 @Component
-public class NormalizationRequirementDBTablesGenerator {
+public class StagingRequirementDBTablesGenerator {
     @Autowired
-    NormalizationTablesSpecRepo tblSpecRepo;
+    StagingTablesSpecRepo columnsRepo;
 
     @Autowired
     NormTablesRepo tblsRepo;
@@ -32,7 +32,7 @@ public class NormalizationRequirementDBTablesGenerator {
     public void makeTablesCreationScript() throws Exception{
         PrintStream fileStream = new PrintStream(env.getProperty("requirementCombinedTableCreationScript"));
 
-        List<NormalizationTablesSpecEntity> columns = tblSpecRepo.findAll();
+        List<NormalizationTablesSpecEntity> columns = columnsRepo.findAll();
         List<NormTablesEntity> tables = tblsRepo.findAll();
 
         String newTableName = "";

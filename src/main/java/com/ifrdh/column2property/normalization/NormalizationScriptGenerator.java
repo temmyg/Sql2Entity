@@ -3,9 +3,8 @@ package com.ifrdh.column2property.normalization;
 import com.ifrdh.column2property.models.NormTablesEntity;
 import com.ifrdh.column2property.models.NormalizationTablesSpecEntity;
 import com.ifrdh.column2property.repositories.NormTablesRepo;
-import com.ifrdh.column2property.repositories.NormalizationTablesSpecRepo;
+import com.ifrdh.column2property.repositories.StagingTablesSpecRepo;
 import com.ifrdh.column2property.utils.JavaTypeFinder;
-import com.ifrdh.column2property.utils.SizedBuffer;
 import com.ifrdh.column2property.utils.SizedBufferWriter;
 import javafx.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,17 +13,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.PrintStream;
 import java.util.*;
 
 @Component
 public class NormalizationScriptGenerator {
+    @Value("${masterTableName}")
+    String masterTabelName;
 
     @Autowired
-    NormalizationTablesSpecRepo tblSpecRepo;
+    StagingTablesSpecRepo tblSpecRepo;
 
     @Autowired
     NormTablesRepo tblsRepo;
@@ -39,15 +37,15 @@ public class NormalizationScriptGenerator {
 
     PrintStream createScriptStream;
 
-    @Resource
-    @Qualifier("normSizedWriter")
+    @Autowired
+    @Qualifier("normSizedWriter") //
     SizedBufferWriter sizedFileWriter;
     //FileOutputStream processOutputStream;
 
-    // column name, table name
-    List<Pair<String, String>> uniColumnNames = new ArrayList<>();
+    // column name, table name, sqlType
+    List<Pair<String, Pair<String, String>>> uniColumnNames = new ArrayList<>();
 
-    public List<Pair<String, String>> getUniColumnNames() {
+    public List<Pair<String, Pair<String, String>>> getUniColumnNames() {
         return uniColumnNames;
     }
 
@@ -69,28 +67,31 @@ public class NormalizationScriptGenerator {
     }
 
     public void makeCreateTableScript(List<NormalizationTablesSpecEntity> columnList, List<NormTablesEntity> tables) {
-        String tableName = tables.get(0).getTableName().trim();
 
+        String tableName;
         Map<String, Boolean> readColumns = new HashMap<>();
         List<Pair<String, String>> tempResult = new ArrayList<>();
 
         Collections.sort(columnList, new SortTablesAndColumns());
+//        tableName = tables.get(0).getTableName().trim();
 
         createScriptStream.println("Use IFRDH");
         createScriptStream.println("drop table " + normTableName);
         createScriptStream.println(String.format("Create Table %s (", normTableName));
 
         tempResult.add(new Pair<>(null, String.format("%s","assetcode varchar(150),")));
-        uniColumnNames.add(new Pair<String, String>("assetcode", tableName));
+        uniColumnNames.add(new Pair<String, Pair<String,String>>("assetcode", new Pair<>(masterTabelName.toLowerCase(), "varchar(150)")));
 
-        String columnName = null, distinctColumnName = null;
+        String columnName = null, distinctColumnName = null, sqlType;
 
         for (NormalizationTablesSpecEntity column : columnList) {
             NormTablesEntity table = column.getTable();
             Boolean includeIn = table.getIsNormalizing();
             if (includeIn != null && includeIn) {
+
+                //always add lowercased column name
                 columnName = column.getColumnName().toLowerCase();
-                tableName = table.getTableName().trim();
+                tableName = table.getTableName().trim().toLowerCase();
 
                 // columns name are not unique in NormalizationTablesSpec table
                 if (columnName.equals("assetcode")){
@@ -107,10 +108,10 @@ public class NormalizationScriptGenerator {
                     readColumns.put(columnName, false);
 
                 distinctColumnName = columnName + "$" + tableName;
+                sqlType = JavaTypeFinder.convertToSQLType(column.getDataType());
 
-                uniColumnNames.add(new Pair<String, String>(distinctColumnName, tableName));
-
-                tempResult.add(new Pair<>(columnName, String.format("\t%s %s,", distinctColumnName, JavaTypeFinder.convertToSQLType(column.getDataType()))));
+                uniColumnNames.add(new Pair<String, Pair<String, String> >(distinctColumnName, new Pair<>(tableName, sqlType)));
+                tempResult.add(new Pair<>(columnName, String.format("\t%s %s,", distinctColumnName, sqlType)));
             }
         }
 
@@ -125,22 +126,30 @@ public class NormalizationScriptGenerator {
 
             elem = tempResult.get(i);
             String line = elem.getValue();
-            tableName = uniColumnNames.get(i).getValue();
+            tableName = uniColumnNames.get(i).getValue().getKey();
             String rawColumnName = elem.getKey();
 
-            // if the column name has no duplicate
-            if(readColumns.containsKey(rawColumnName) && !readColumns.get(rawColumnName)) {
-                int bgnIndex = line.indexOf("$");
-                int endIndex = line.indexOf(" ", bgnIndex);
-                line = line.substring(0, bgnIndex) + line.substring(endIndex);
-                distinctColumnName = distinctColumnName.substring(0, distinctColumnName.indexOf("$"));
-                uniColumnNames.remove(i);
-                uniColumnNames.add(i, new Pair<String, String>(distinctColumnName, tableName));
+            try {
+                // if the column name has no duplicate
+                if (readColumns.containsKey(rawColumnName) && !readColumns.get(rawColumnName)) {
+                    int bgnIndex = line.indexOf("$");
+                    int endIndex = line.indexOf(" ", bgnIndex);
+
+                    line = line.substring(0, bgnIndex) + line.substring(endIndex);
+
+                    // no duplicate, remove $Table_Name
+                    distinctColumnName = distinctColumnName.substring(0, distinctColumnName.indexOf("$"));
+                    elem = uniColumnNames.get(i).getValue();
+                    uniColumnNames.remove(i);
+                    uniColumnNames.add(i, new Pair<String, Pair<String, String>>(distinctColumnName, elem));
+                } else {  // has duplicate
+                    line = line.replace("$", "_");
+                    distinctColumnName = uniColumnNames.get(i).getKey().replace('$', '_');
+                    uniColumnNames.set(i, new Pair<String, Pair<String, String>>(distinctColumnName, uniColumnNames.get(i).getValue()));
+                }
             }
-            else {  // has duplicate
-                line = line.replace("$", "_");
-                distinctColumnName = uniColumnNames.get(i).getKey().replace('$','_');
-                uniColumnNames.set(i, new Pair<String, String>(distinctColumnName, tableName));
+            catch (Exception ex){
+                int i2 = 0;
             }
             createScriptStream.println(line);
         }
@@ -173,7 +182,10 @@ public class NormalizationScriptGenerator {
 
         int allColumnCount = 0; //assetcode already in
         for(NormalizationTablesSpecEntity column : columnList){
+
             Boolean include = column.getTable().getIsNormalizing();
+
+            // table should be included in the normalization table
             if(include!=null && include) {
                 normalizingColumns.add(column);
                 allColumnCount++;
@@ -242,7 +254,7 @@ public class NormalizationScriptGenerator {
 
         int totalTableColumns = uniColumnNames.size();
         int count = 0;
-        for(Pair<String, String> colnm : uniColumnNames) {
+        for(Pair<String, Pair<String, String>> colnm : uniColumnNames) {
             count++;
             sizedFileWriter.write(String.format("%s",colnm.getKey()));
 

@@ -1,10 +1,11 @@
 package com.ifrdh.column2property;
 
 
+import com.ifrdh.column2property.Enrichment.EnrichmentScriptGenerator;
 import com.ifrdh.column2property.normalization.NormalizationScriptGenerator;
 import com.ifrdh.column2property.requirement_auto_generate.EnrichRequirementDBAdaptor;
 import com.ifrdh.column2property.requirement_auto_generate.NomalizationRequirementDBAdaptor;
-import com.ifrdh.column2property.requirement_auto_generate.NormalizationRequirementDBTablesGenerator;
+import com.ifrdh.column2property.requirement_auto_generate.StagingRequirementDBTablesGenerator;
 import com.ifrdh.column2property.utils.SpecialColumnNameTreator;
 import javafx.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,10 @@ public class Column2propertyApplication implements CommandLineRunner {
     NormalizationScriptGenerator normGen;
 
     @Autowired
-    NormalizationRequirementDBTablesGenerator requirementTablesGenerator;
+    StagingRequirementDBTablesGenerator stagingTablesGenerator;
+
+    @Autowired
+    EnrichmentScriptGenerator enrichmentScriptGenerator;
 
     @Autowired
     EnrichRequirementDBAdaptor enrichRequirementDBAdaptor;
@@ -62,15 +66,20 @@ public class Column2propertyApplication implements CommandLineRunner {
 
         //stagingScriptsEntities_gen();
 
+        //staging all table generate
+        stagingTablesGenerator.makeTablesCreationScript();
+
         //Normalization
         NomalizationRequirementDBAdaptor.process();
-        requirementTablesGenerator.makeTablesCreationScript();
         normGen.generateNormalizationScripts();
 
-        List<Pair<String, String>> normTableColumns = normGen.getUniColumnNames();
+
+        List<Pair<String, Pair<String, String>>> normTableColumns = normGen.getUniColumnNames();
 
         //Enrichment
         enrichRequirementDBAdaptor.process();
+
+        enrichmentScriptGenerator.makeEnrichmentScripts(normTableColumns);
 
     }
 
