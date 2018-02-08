@@ -56,5 +56,14 @@ public class EnrichmentRequirementEntity {
 		this.isCalculated = isCalculated;
 	}
 
+	@DataField(pos = 5)
+	private String ordinalNumber;
+	public String getOrdinalNumber() {
+		return ordinalNumber;
+	}
+	public void setOrdinalNumber(String ordinalNumber) {
+		this.ordinalNumber = ordinalNumber;
+	}
+
 } 
 

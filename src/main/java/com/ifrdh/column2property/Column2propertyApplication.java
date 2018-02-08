@@ -6,6 +6,7 @@ import com.ifrdh.column2property.normalization.NormalizationScriptGenerator;
 import com.ifrdh.column2property.requirement_auto_generate.EnrichRequirementDBAdaptor;
 import com.ifrdh.column2property.requirement_auto_generate.NomalizationRequirementDBAdaptor;
 import com.ifrdh.column2property.requirement_auto_generate.StagingRequirementDBTablesGenerator;
+import com.ifrdh.column2property.utils.GenerateType;
 import com.ifrdh.column2property.utils.SpecialColumnNameTreator;
 import javafx.util.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,23 +65,31 @@ public class Column2propertyApplication implements CommandLineRunner {
 
     public void run(String[] args) throws Exception {
 
-        //stagingScriptsEntities_gen();
+        GenerateType generateType = GenerateType.Entities; // GenerateType.NormalizationAndEnrichment;
 
-        //staging all table generate
-        stagingTablesGenerator.makeTablesCreationScript();
+        switch (generateType) {
+            case Entities:
+                stagingScriptsEntities_gen();
+                break;
+            case Staging:
+                //staging all table generate
+                stagingTablesGenerator.makeTablesCreationScript();
+                break;
+            case NormalizationAndEnrichment:
+                //Normalization
+                NomalizationRequirementDBAdaptor.process();
+                normGen.generateNormalizationScripts();
 
-        //Normalization
-        NomalizationRequirementDBAdaptor.process();
-        normGen.generateNormalizationScripts();
+                List<Pair<String, Pair<String, String>>> normTableColumns = normGen.getUniColumnNames();
 
+                //Enrichment
+                enrichRequirementDBAdaptor.process();
 
-        List<Pair<String, Pair<String, String>>> normTableColumns = normGen.getUniColumnNames();
-
-        //Enrichment
-        enrichRequirementDBAdaptor.process();
-
-        enrichmentScriptGenerator.makeEnrichmentScripts(normTableColumns);
-
+                enrichmentScriptGenerator.makeEnrichmentScripts(normTableColumns);
+                break;
+            default:
+                break;
+        }
     }
 
     private void stagingScriptsEntities_gen() throws Exception {

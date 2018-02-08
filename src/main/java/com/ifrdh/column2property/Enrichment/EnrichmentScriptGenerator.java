@@ -38,7 +38,7 @@ public class EnrichmentScriptGenerator {
     // Normalization Col - TableName, SqlType
     Map<String, Pair<String, String>> normalizationEnrichmentMapping = new HashMap<>();
 
-    public void makeEnrichmentScripts(List<Pair<String, Pair<String, String>>> normColumns) throws Exception{
+    public void makeEnrichmentScripts(List<Pair<String, Pair<String, String>>> normColumns) throws Exception {
         List<EnrichmentRequirementEntity> enrichmentRequirementColumns = enrichmentRequirementColsRepo.findAll();
 
         // key: standardizedNorm Column name, value: table name, normlization column name
@@ -109,12 +109,12 @@ public class EnrichmentScriptGenerator {
 //
 //        }
 
-          makeCreateTableScript();
+        makeCreateTableScript(enrichmentRequirementColumns);
 
-            makeInsertionEnrichmentScript();
+        makeInsertionEnrichmentScript();
     }
 
-    public void makeCreateTableScript() throws Exception{
+    public void makeCreateTableScript(List<EnrichmentRequirementEntity> enrichmentRequirementColumns) throws Exception {
 
         PrintStream fileAppender = new PrintStream(env.getProperty("enrichmentTableCreationScript"));
 
@@ -123,14 +123,33 @@ public class EnrichmentScriptGenerator {
         fileAppender.println(String.format("Create Table %s (", enrichmentTableName));
 
         int i = 0;
-        for(String normColName : normalizationEnrichmentMapping.keySet()) {
+        for (String normColName : normalizationEnrichmentMapping.keySet()) {
             i++;
             fileAppender.print(String.format("\t%s %s", normColName, normalizationEnrichmentMapping.get(normColName).getValue()));
-            if( i != normalizationEnrichmentMapping.size())
+            if (i != normalizationEnrichmentMapping.size())
                 fileAppender.println(",");
             else
-                fileAppender.println(")");
+                fileAppender.println(",");
         }
+
+        String columnName = null, presentationName;
+        int calculatedTotal = 16;
+        int colCount = 0;
+        for (EnrichmentRequirementEntity col : enrichmentRequirementColumns) {
+            if (col.getIsCalculated()) {
+                colCount++;
+                columnName = col.getColumnName();
+                presentationName = col.getPresentationName();
+                if (columnName.indexOf("calculated") != -1)
+                    columnName = presentationName.replace("(", "").replace(")", "").replace(" ", "_");
+                fileAppender.print(String.format("\t%s %s", columnName, "float"));
+                if(colCount!=calculatedTotal)
+                    fileAppender.println(",");
+                else
+                    fileAppender.println(")");
+            }
+        }
+
         fileAppender.close();
     }
 
@@ -141,10 +160,10 @@ public class EnrichmentScriptGenerator {
         String colName;
         int totalCols = normalizationEnrichmentMapping.size();
         int loop = 0;
-        for(Map.Entry entry : normalizationEnrichmentMapping.entrySet()) {
+        for (Map.Entry entry : normalizationEnrichmentMapping.entrySet()) {
             loop++;
             enrichInsertScriptFile.write(entry.getKey().toString());
-            if(loop < totalCols)
+            if (loop < totalCols)
                 enrichInsertScriptFile.write(",");
             else
                 enrichInsertScriptFile.write(")");
@@ -152,10 +171,10 @@ public class EnrichmentScriptGenerator {
         enrichInsertScriptFile.write("\r\n Select ");
 
         loop = 0;
-        for(Map.Entry entry : normalizationEnrichmentMapping.entrySet()){
+        for (Map.Entry entry : normalizationEnrichmentMapping.entrySet()) {
             loop++;
             enrichInsertScriptFile.write(entry.getKey().toString());
-            if(loop < totalCols)
+            if (loop < totalCols)
                 enrichInsertScriptFile.write(",");
             else
                 enrichInsertScriptFile.write(" ");

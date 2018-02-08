@@ -8,8 +8,10 @@ public class JavaTypeFinder {
             case "number":
                 // default to 53 bits
                 sqlType = "float";
+                break;
             case "date":
                 sqlType = "datetime";
+                break;
             case "text":
             default:
                 break;
