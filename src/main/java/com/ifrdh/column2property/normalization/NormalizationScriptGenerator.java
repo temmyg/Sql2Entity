@@ -1,7 +1,7 @@
 package com.ifrdh.column2property.normalization;
 
 import com.ifrdh.column2property.models.NormTablesEntity;
-import com.ifrdh.column2property.models.NormalizationTablesSpecEntity;
+import com.ifrdh.column2property.models.IFREStagingColumnsEntity;
 import com.ifrdh.column2property.repositories.NormTablesRepo;
 import com.ifrdh.column2property.repositories.StagingTablesSpecRepo;
 import com.ifrdh.column2property.utils.JavaTypeFinder;
@@ -58,7 +58,7 @@ public class NormalizationScriptGenerator {
         createScriptStream = new PrintStream(env.getProperty("normalizeTablesCreation"));
         //processOutputStream = new FileOutputStream(env.getProperty("normalizationProcessScript"));
 
-        List<NormalizationTablesSpecEntity> allColumns = tblSpecRepo.findAll();
+        List<IFREStagingColumnsEntity> allColumns = tblSpecRepo.findAll();
         List<NormTablesEntity> tables = tblsRepo.findAll();
 
         makeCreateTableScript(allColumns, tables);
@@ -66,7 +66,7 @@ public class NormalizationScriptGenerator {
 
     }
 
-    public void makeCreateTableScript(List<NormalizationTablesSpecEntity> columnList, List<NormTablesEntity> tables) {
+    public void makeCreateTableScript(List<IFREStagingColumnsEntity> columnList, List<NormTablesEntity> tables) {
 
         String tableName;
         Map<String, Boolean> readColumns = new HashMap<>();
@@ -84,7 +84,7 @@ public class NormalizationScriptGenerator {
 
         String columnName = null, distinctColumnName = null, sqlType;
 
-        for (NormalizationTablesSpecEntity column : columnList) {
+        for (IFREStagingColumnsEntity column : columnList) {
             NormTablesEntity table = column.getTable();
             Boolean includeIn = table.getIsNormalizing();
             if (includeIn != null && includeIn) {
@@ -157,7 +157,7 @@ public class NormalizationScriptGenerator {
         createScriptStream.println(")");
     }
 
-    public void makePopulateNormTableScript(List<NormalizationTablesSpecEntity> columnList, List<NormTablesEntity> tables) throws Exception{
+    public void makePopulateNormTableScript(List<IFREStagingColumnsEntity> columnList, List<NormTablesEntity> tables) throws Exception{
         // possibly it is already sorted
         Collections.sort(columnList, new SortTablesAndColumns());
         //sort table list
@@ -178,10 +178,10 @@ public class NormalizationScriptGenerator {
         String tableName, columnName;
 
 
-        List<NormalizationTablesSpecEntity> normalizingColumns = new ArrayList<>();
+        List<IFREStagingColumnsEntity> normalizingColumns = new ArrayList<>();
 
         int allColumnCount = 0; //assetcode already in
-        for(NormalizationTablesSpecEntity column : columnList){
+        for(IFREStagingColumnsEntity column : columnList){
 
             Boolean include = column.getTable().getIsNormalizing();
 
@@ -194,7 +194,7 @@ public class NormalizationScriptGenerator {
 
         boolean assetCodeTaken = false;
         int  index = 0, validColumns = 1;
-        for(NormalizationTablesSpecEntity column : normalizingColumns){
+        for(IFREStagingColumnsEntity column : normalizingColumns){
             index++;
             tableName = column.getTable().getTableName().trim();
             columnName = column.getColumnName().toLowerCase();
@@ -269,8 +269,8 @@ public class NormalizationScriptGenerator {
     }
 }
 
-class SortTablesAndColumns implements Comparator<NormalizationTablesSpecEntity> {
-    public int compare(NormalizationTablesSpecEntity e1, NormalizationTablesSpecEntity e2){
+class SortTablesAndColumns implements Comparator<IFREStagingColumnsEntity> {
+    public int compare(IFREStagingColumnsEntity e1, IFREStagingColumnsEntity e2){
         String tabOrder1 = e1.getTable().getOrderedId(), tabOrder2 = e2.getTable().getOrderedId();
         if(!tabOrder1.equals(tabOrder2))
            return Integer.valueOf(e1.getTable().getOrderedId()) - Integer.valueOf(e2.getTable().getOrderedId());

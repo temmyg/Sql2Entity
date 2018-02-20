@@ -2,7 +2,7 @@ package com.ifrdh.column2property.requirement_auto_generate;
 
 
 import com.ifrdh.column2property.models.NormTablesEntity;
-import com.ifrdh.column2property.models.NormalizationTablesSpecEntity;
+import com.ifrdh.column2property.models.IFREStagingColumnsEntity;
 import com.ifrdh.column2property.repositories.NormTablesRepo;
 import com.ifrdh.column2property.repositories.StagingTablesSpecRepo;
 import com.ifrdh.column2property.utils.JavaTypeFinder;
@@ -29,29 +29,29 @@ public class StagingRequirementDBTablesGenerator {
     @Resource(name="entityManagerFactory")
     private EntityManagerFactory entityManagerFactory;
 
-    public void makeTablesCreationScript() throws Exception{
-        PrintStream fileStream = new PrintStream(env.getProperty("requirementCombinedTableCreationScript"));
+    public void makeTablesCreationScript(String fileName) throws Exception{
+        PrintStream fileStream = new PrintStream(fileName);
 
-        List<NormalizationTablesSpecEntity> columns = columnsRepo.findAll();
+        List<IFREStagingColumnsEntity> columns = columnsRepo.findAll();
         List<NormTablesEntity> tables = tblsRepo.findAll();
 
         String newTableName = "";
         String columnName = null;
         int colCount = 0, totNumber=0;
-        for(NormalizationTablesSpecEntity column : columns){
+        for(IFREStagingColumnsEntity column : columns){
             if(!newTableName.equals(column.getTable().getTableName())) {
                 colCount = 0;
                 totNumber = column.getTable().getColumnNumberRequired();
                 newTableName = column.getTable().getTableName();
-                fileStream.println(String.format("%nCreate TABLE %s (", newTableName));
+                fileStream.println(String.format("%nCREATE TABLE %s (", newTableName));
             }
             colCount++;
             columnName = column.getColumnName().replace(' ','_');
-            fileStream.print(String.format("\t%s %s", columnName, JavaTypeFinder.convertToSQLType(column.getDataType())));
+            fileStream.print(String.format("\t%s %s ", columnName, JavaTypeFinder.convertToSQLType(column.getDataType())));
             if(colCount == totNumber)
-                fileStream.println(")");
+                fileStream.println(String.format(" ) \t -- dataField: %d", column.getDataFieldOrdinalNo()));
             else
-                fileStream.println(",");
+                fileStream.println(String.format(", \t -- dataField: %d", column.getDataFieldOrdinalNo()));
         }
 
         fileStream.close();

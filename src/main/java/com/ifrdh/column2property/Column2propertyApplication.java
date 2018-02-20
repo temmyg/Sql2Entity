@@ -4,8 +4,10 @@ package com.ifrdh.column2property;
 import com.ifrdh.column2property.Enrichment.EnrichmentScriptGenerator;
 import com.ifrdh.column2property.normalization.NormalizationScriptGenerator;
 import com.ifrdh.column2property.requirement_auto_generate.EnrichRequirementDBAdaptor;
+import com.ifrdh.column2property.requirement_auto_generate.IFREStagingEntitiesGenerator;
 import com.ifrdh.column2property.requirement_auto_generate.NomalizationRequirementDBAdaptor;
 import com.ifrdh.column2property.requirement_auto_generate.StagingRequirementDBTablesGenerator;
+import com.ifrdh.column2property.utils.CodeHelper;
 import com.ifrdh.column2property.utils.GenerateType;
 import com.ifrdh.column2property.utils.SpecialColumnNameTreator;
 import javafx.util.Pair;
@@ -48,6 +50,9 @@ public class Column2propertyApplication implements CommandLineRunner {
     @Autowired
     EnrichRequirementDBAdaptor enrichRequirementDBAdaptor;
 
+    @Autowired
+    CodeHelper codeHelper;
+
     ArrayList<String> entityCodeContent = new ArrayList<String>();
     ArrayList<String> originContent = new ArrayList<String>();
 
@@ -65,15 +70,20 @@ public class Column2propertyApplication implements CommandLineRunner {
 
     public void run(String[] args) throws Exception {
 
-        GenerateType generateType = GenerateType.Entities; // GenerateType.NormalizationAndEnrichment;
+        GenerateType generateType = GenerateType.Staging; //GenerateType.Entities; // GenerateType.NormalizationAndEnrichment;
 
         switch (generateType) {
             case Entities:
                 stagingScriptsEntities_gen();
                 break;
             case Staging:
-                //staging all table generate
-                stagingTablesGenerator.makeTablesCreationScript();
+                String scriptFilename = env.getProperty("requirementCombinedTableCreationScript");
+                //IFRE all staging table generate from requirement
+                stagingTablesGenerator.makeTablesCreationScript(scriptFilename);
+                IFREStagingEntitiesGenerator gen = new IFREStagingEntitiesGenerator();
+
+                //make staging entities from RequirementCombinedTableCreationScript.sql
+                IFREStagingEntitiesGenerator.createStagingEntitiesFromScript(scriptFilename);
                 break;
             case NormalizationAndEnrichment:
                 //Normalization
@@ -163,49 +173,49 @@ public class Column2propertyApplication implements CommandLineRunner {
                         destFileName = className + ".java";
                         entityCodeContent.add(String.format("public class %s %s", className, "{"));
                         entityCodeContent.add("");
-                        entityCodeContent.add(tabs(1) + "int Id;");
+                        entityCodeContent.add(codeHelper.tabs(1) + "int Id;");
                         entityCodeContent.add("");
-                        entityCodeContent.add(tabs(1) + "@Id");
-                        entityCodeContent.add(tabs(1) + "@GeneratedValue(strategy= GenerationType.AUTO)");
-                        entityCodeContent.add(generateGetter("Id", "int", 1));
-                        entityCodeContent.add(generateSetter("Id", "int", 1));
+                        entityCodeContent.add(codeHelper.tabs(1) + "@Id");
+                        entityCodeContent.add(codeHelper.tabs(1) + "@GeneratedValue(strategy= GenerationType.AUTO)");
+                        entityCodeContent.add(codeHelper.generateGetter("Id", "int", 1));
+                        entityCodeContent.add(codeHelper.generateSetter("Id", "int", 1));
                         entityCodeContent.add("");
                         continue;
                     } else
                         throw new Exception("Table Name Not Found");
 
-                }
+                } else {
+                    // column searching
+                    //pattern = Pattern.compile("(?<=\\t\\[)[a-zA-Z_0-9 ]+(?=\\]\\s)");
+                    // match column name
+                    pattern = Pattern.compile("(?<=\\t\\[)[a-zA-Z_0-9 ]+(?=\\]\\s)");
+                    matcher = pattern.matcher(line);
+                    if (matcher.find()) {
+                        propCount++;
+                        String prop = matcher.group();
+                        if (!prop.toLowerCase().equals("id")) {
+                            if (prop.indexOf(" ") != -1)
+                                prop = prop.replace(' ', '_');
+                            prop = Character.toLowerCase(prop.charAt(0)) + prop.substring(1);
+                            // match column sql type
+                            pattern = Pattern.compile("(?<=\\]\\s\\[)[a-zA-Z_0-9 ]+(?=\\])");
+                            matcher = pattern.matcher(line);
+                            if (matcher.find()) {
+                                String dataType = matcher.group();
+                                String javaDataType = codeHelper.findJavaDataType(dataType);
 
-                // column searching
-                //pattern = Pattern.compile("(?<=\\t\\[)[a-zA-Z_0-9 ]+(?=\\]\\s)");
-                // match column name
-                pattern = Pattern.compile("(?<=\\t\\[)[a-zA-Z_0-9 ]+(?=\\]\\s)");
-                matcher = pattern.matcher(line);
-                if (matcher.find()) {
-                    propCount++;
-                    String prop = matcher.group();
-                    if (!prop.toLowerCase().equals("id")) {
-                        if (prop.indexOf(" ") != -1)
-                            prop = prop.replace(' ', '_');
-                        prop = Character.toLowerCase(prop.charAt(0)) + prop.substring(1);
-                        // match column sql type
-                        pattern = Pattern.compile("(?<=\\]\\s\\[)[a-zA-Z_0-9 ]+(?=\\])");
-                        matcher = pattern.matcher(line);
-                        if (matcher.find()) {
-                            String dataType = matcher.group();
-                            String javaDataType = findJavaDataType(dataType);
+                                if (javaDataType.indexOf("Date") != -1 && entityCodeContent.get(2).indexOf("Date") == -1)
+                                    entityCodeContent.add(2, "import java.util.Date;");
+                                entityCodeContent.add(String.format("\t@DataField(pos = %d)", propCount));
+                                entityCodeContent.add(String.format("\tprivate %s %s;", javaDataType, prop));
+                                entityCodeContent.add(codeHelper.generateGetter(prop, javaDataType, 1));
+                                entityCodeContent.add(codeHelper.generateSetter(prop, javaDataType, 1));
+                            }
+                            entityCodeContent.add("");
+                        } else
+                            continue;
 
-                            if (javaDataType.indexOf("Date") != -1)
-                                entityCodeContent.add(2, "import java.util.Date;");
-                            entityCodeContent.add(String.format("\t@DataField(pos = %d)", propCount));
-                            entityCodeContent.add(String.format("\tprivate %s %s;", javaDataType, prop));
-                            entityCodeContent.add(generateGetter(prop, javaDataType, 1));
-                            entityCodeContent.add(generateSetter(prop, javaDataType, 1));
-                        }
-                        entityCodeContent.add("");
-                    } else
-                        continue;
-
+                    }
                 }
             }
             entityCodeContent.add(String.format("} %n"));
@@ -239,36 +249,6 @@ public class Column2propertyApplication implements CommandLineRunner {
         fw.close();
     }
 
-    private String generateGetter(String propertyName, String type, int initialTabNum) {
-        StringBuilder sb = new StringBuilder();
-
-        sb.append(tabs(initialTabNum));
-        sb.append("public " + type + " get" + StringUtils.capitalize(propertyName));
-        sb.append("() {");
-        sb.append(newLine);
-        sb.append(tabs(initialTabNum + 1));
-        sb.append("return " + propertyName + ";");
-        sb.append(newLine);
-        sb.append(tabs(initialTabNum));
-        sb.append("}");
-        return sb.toString();
-    }
-
-    private String generateSetter(String propertyName, String type, int initialTabNum) {
-        StringBuilder sb = new StringBuilder();
-
-        sb.append(tabs(initialTabNum));
-        sb.append("public void " + "set" + StringUtils.capitalize(propertyName));
-        sb.append("(" + type + " " + propertyName + ") {");
-        sb.append(newLine);
-        sb.append(tabs(initialTabNum + 1));
-        sb.append("this." + propertyName + " = " + propertyName + ";");
-        sb.append(newLine);
-        sb.append(tabs(initialTabNum));
-        sb.append("}");
-        return sb.toString();
-    }
-
     private void generateCombinedScript(File file) throws Exception {
 
         byte[] buf = new byte[1024];
@@ -290,28 +270,6 @@ public class Column2propertyApplication implements CommandLineRunner {
 
     private void closeCombined() throws Exception {
         outputStream.close();
-    }
-
-    private String findJavaDataType(String sqlDataType) {
-        String resultType = null;
-        switch (sqlDataType) {
-            case "float":
-                resultType = "Double";
-                break;
-            case "datetime":
-                resultType = "Date";
-                break;
-            case "varchar":
-            case "nvarchar":
-                resultType = "String";
-                break;
-            case "bit":
-                resultType = "Boolean";
-                break;
-            default:
-                resultType = "String";
-        }
-        return resultType;
     }
 
     private void genDeleteScript() throws Exception {
@@ -369,12 +327,5 @@ public class Column2propertyApplication implements CommandLineRunner {
 
         tablesScriptOutputStream.write(sb.toString().getBytes());
         tablesScriptOutputStream.write("\r\n==========================================================================\r\n".getBytes());
-    }
-
-    private String tabs(int num) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < num; i++)
-            sb.append("\t");
-        return sb.toString();
     }
 }

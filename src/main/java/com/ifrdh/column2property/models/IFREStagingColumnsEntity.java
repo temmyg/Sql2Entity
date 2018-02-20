@@ -3,8 +3,8 @@ package com.ifrdh.column2property.models;
 import javax.persistence.*;
 
 @Entity
-@Table(name="NormalizationTablesSpec")
-public class NormalizationTablesSpecEntity {
+@Table(name="IFREStagingColumns")
+public class IFREStagingColumnsEntity { //IFREStagingColumnsEntity
 
 	int Id;
 	@Id
@@ -52,6 +52,15 @@ public class NormalizationTablesSpecEntity {
 		this.table = table;
 	}
 
+	private int dataFieldOrdinalNo;
+
+	public int getDataFieldOrdinalNo() {
+		return dataFieldOrdinalNo;
+	}
+
+	public void setDataFieldOrdinalNo(int dataFieldOrdinalNo) {
+		this.dataFieldOrdinalNo = dataFieldOrdinalNo;
+	}
 //	@JoinColumn(name = "originalTable")
 //	@ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
 //	public NormTablesEntity getTable() {

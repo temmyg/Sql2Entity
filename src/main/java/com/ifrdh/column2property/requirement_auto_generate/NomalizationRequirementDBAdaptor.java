@@ -1,6 +1,6 @@
 package com.ifrdh.column2property.requirement_auto_generate;
 
-import com.ifrdh.column2property.models.NormalizationTablesSpecEntity;
+import com.ifrdh.column2property.models.IFREStagingColumnsEntity;
 import com.ifrdh.column2property.repositories.NormTablesRepo;
 import com.ifrdh.column2property.repositories.StagingTablesSpecRepo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,11 +22,11 @@ public class NomalizationRequirementDBAdaptor {
     private static NormTablesRepo tablesRepo;
 
     public static void process() {
-        List<NormalizationTablesSpecEntity> columns = columnsRepo.findAll();
+        List<IFREStagingColumnsEntity> columns = columnsRepo.findAll();
         int leng = columns.size();
 
         String columnName, tableName;
-        NormalizationTablesSpecEntity column;
+        IFREStagingColumnsEntity column;
         for (int i = 0; i < leng; i++) {
             column = columns.get(i);
             columnName = column.getColumnName();
