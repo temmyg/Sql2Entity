@@ -1,6 +1,9 @@
 package com.ifrdh.column2property.models;
 
+import com.ifrdh.column2property.utils.Table2View;
+
 import javax.persistence.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -11,7 +14,7 @@ public class NormTablesEntity {
 	@Id
 	private String tableName;
 	public String getTableName() {
-		return tableName;
+        return Table2View.getViewName(tableName);
 	}
 	public void setTableName(String tableName) {
 		this.tableName = tableName;
@@ -41,8 +44,8 @@ public class NormTablesEntity {
 		ColumnNumberRequired = columnNumberRequired;
 	}
 
-	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, mappedBy = "table", targetEntity = NormalizationTablesSpecEntity.class)
-    private Set<NormalizationTablesSpecEntity> columns;
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, mappedBy = "table", targetEntity = IFREStagingColumnsEntity.class)
+    private Set<IFREStagingColumnsEntity> columns;
 
 
 //	private List<NormalizationTablesSpecEntity> columns;

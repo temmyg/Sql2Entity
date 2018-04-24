@@ -13,8 +13,10 @@ import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+
+// create an entity from each CREATE TABLE segment in that sql script file
 @Component
-public class IFREStagingEntitiesGenerator {
+public class IFREEntityGenerator {
 
     private static String destFileName = null;
     private static String folderName;
@@ -50,8 +52,8 @@ public class IFREStagingEntitiesGenerator {
         while ((line = fileReader.readLine()) != null) {
             try {
 
-                if (line.indexOf("CREATE TABLE") != -1) {
-                    pattern = Pattern.compile("(?<=CREATE\\sTABLE\\s{1,20}+)\\w+(?=\\s+\\()");
+                if (line.toUpperCase().indexOf("CREATE TABLE") != -1) {
+                    pattern = Pattern.compile("(?<=CREATE\\sTABLE\\s{1,20}+)\\w+(?=\\s+\\()", Pattern.CASE_INSENSITIVE);
                     matcher = pattern.matcher(line);
                     matcher.find();
                     tableName = matcher.group();
@@ -67,6 +69,9 @@ public class IFREStagingEntitiesGenerator {
                         outputImportStatements();
 
                         tableName = StringUtils.capitalize(tableName);
+                        if(tableName.endsWith("_View"))
+                            tableName = tableName.substring(0, tableName.length() - 5);
+
                         fileContent.add(String.format("@Table(name=\"%s\")", tableName));
                         String className = tableName + "Entity";
                         destFileName = className + ".java";
@@ -88,13 +93,15 @@ public class IFREStagingEntitiesGenerator {
                 } else {
                     // column searching
                     //pattern = Pattern.compile("(?<=\\t\\[)[a-zA-Z_0-9 ]+(?=\\]\\s)");
-
+                    // TODO: special handling of Allocations_TO_BE_CONVERTED, Investment_Aggregation_Grouped_Entity of DF2,
+                    // TODO: Investment_Aggregation_Grouped_Entity of DF3
                     // match column name
-                    pattern = Pattern.compile("(?<=\\t)\\w+(?=\\s{1,10}.{1,30},)");
+                    pattern = Pattern.compile("(?<=\\t)\\w+(?=\\s{1,10}.{1,100}[,|)])");
                     matcher = pattern.matcher(line);
                     if (matcher.find()) {
                         String prop = matcher.group();
-                        if (!prop.toLowerCase().equals("id")) {
+                        if (!prop.toLowerCase().equals("id") && !prop.toLowerCase().equals("constraint")) {
+                            propCount++;
                             if (prop.indexOf(" ") != -1)
                                 prop = prop.replace(' ', '_');
                             prop = Character.toLowerCase(prop.charAt(0)) + prop.substring(1);
@@ -105,11 +112,11 @@ public class IFREStagingEntitiesGenerator {
 
                             if (matcher.find())
                                 fileContent.add(String.format("\t@DataField(pos = %s)", matcher.group()));
-                            else
-                                throw new Exception(String.format("no DataField found in table %S column %S", tableName, prop));
+                           // else
+                           //     throw new Exception(String.format("no DataField found in table %S column %S", tableName, prop));
 
                             // match column sql type
-                            pattern = Pattern.compile("(?<=\\t\\w{1,50}\\s{1,20})\\w+(?=.{1,30},)");
+                            pattern = Pattern.compile("(?<=\\t\\w{1,100}\\s{1,20})\\w+(?=.{0,50}[,|)])");  //(?<=\\t\\w{1,100}\\s{1,20})\\w+(?=.{1,50}[,|)])");
                             matcher = pattern.matcher(line);
                             if (matcher.find()) {
                                 String dataType = matcher.group();

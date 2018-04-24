@@ -42,7 +42,7 @@ public class NormalizationScriptGenerator {
     SizedBufferWriter sizedFileWriter;
     //FileOutputStream processOutputStream;
 
-    // column name, table name, sqlType
+    //unique column name, table name, sqlType
     List<Pair<String, Pair<String, String>>> uniColumnNames = new ArrayList<>();
 
     public List<Pair<String, Pair<String, String>>> getUniColumnNames() {
@@ -78,9 +78,9 @@ public class NormalizationScriptGenerator {
         createScriptStream.println("Use IFRDH");
         createScriptStream.println("drop table " + normTableName);
         createScriptStream.println(String.format("Create Table %s (", normTableName));
-
-        tempResult.add(new Pair<>(null, String.format("%s","assetcode varchar(150),")));
-        uniColumnNames.add(new Pair<String, Pair<String,String>>("assetcode", new Pair<>(masterTabelName.toLowerCase(), "varchar(150)")));
+        createScriptStream.println("ImportId bigint,");
+        tempResult.add(new Pair<>(null, String.format("%s","assetcode varchar(1000),")));
+        uniColumnNames.add(new Pair<String, Pair<String,String>>("assetcode", new Pair<>(masterTabelName.toLowerCase(), "varchar(1000)")));
 
         String columnName = null, distinctColumnName = null, sqlType;
 
@@ -99,6 +99,7 @@ public class NormalizationScriptGenerator {
                 }
                 // flag duplicate columnName to true
                 if(readColumns.containsKey(columnName)) {
+                    // flag true for duplicate column
                     if(!readColumns.get(columnName)) {
                         readColumns.remove(columnName);
                         readColumns.put(columnName, true);
@@ -115,6 +116,11 @@ public class NormalizationScriptGenerator {
             }
         }
 
+        Pair<String, String> lastLine = tempResult.get(tempResult.size()-1);
+        String replacedVal = lastLine.getValue().replace(",","");
+        tempResult.remove(tempResult.size() - 1);
+        tempResult.add(new Pair<>(lastLine.getKey(), replacedVal));
+
         // Pair<String, String> elem : tempResult
         int columnsCount = tempResult.size();
         Pair<String, String> elem = null;
@@ -126,6 +132,7 @@ public class NormalizationScriptGenerator {
 
             elem = tempResult.get(i);
             String line = elem.getValue();
+
             tableName = uniColumnNames.get(i).getValue().getKey();
             String rawColumnName = elem.getKey();
 
@@ -135,6 +142,7 @@ public class NormalizationScriptGenerator {
                     int bgnIndex = line.indexOf("$");
                     int endIndex = line.indexOf(" ", bgnIndex);
 
+                    // transform column name for normalization table
                     line = line.substring(0, bgnIndex) + line.substring(endIndex);
 
                     // no duplicate, remove $Table_Name
@@ -168,15 +176,21 @@ public class NormalizationScriptGenerator {
             }
         });
 
-        // Insert Statement
+        sizedFileWriter.write(String.format("ALTER procedure [dbo].[NormalizationPhaseII] as%n"));
+        sizedFileWriter.write(String.format("begin%n"));
+        sizedFileWriter.write(String.format("set nocount on%n"));
+        sizedFileWriter.write(String.format("declare @importid bigint%n"));
+        sizedFileWriter.write(String.format(" select  @importid = max(importid) from dbo.IFRDH_Import where importtype = 'REImport'%n%n"));
+
+        //****** Insert Statement
         writeInsertScript();
 
         // SELECT STATEMENT
         sizedFileWriter.write(String.format("%n%s",  "select "));
+        sizedFileWriter.write("@importid,");
         sizedFileWriter.write("DIF_IFRE_Assets.assetcode, ");
 
         String tableName, columnName;
-
 
         List<IFREStagingColumnsEntity> normalizingColumns = new ArrayList<>();
 
@@ -214,8 +228,8 @@ public class NormalizationScriptGenerator {
 
         NormTablesEntity lastTable = null;
 
-        int tblIndex = 0, validTableCount = 0;
-        String joinType = "join";
+        int tblIndex = 0, validTableCount = 0, processedCount = 0;
+        String joinType = "left join";
 
         for(NormTablesEntity table : tables)
             if(table.getIsNormalizing()!=null && table.getIsNormalizing())
@@ -223,35 +237,37 @@ public class NormalizationScriptGenerator {
         for( ; tblIndex < tables.size() ; tblIndex++){
             Boolean include = tables.get(tblIndex).getIsNormalizing();
             if(include != null && include) {
-                tableName = tables.get(tblIndex).getTableName().trim();
-                String currentTblName = tableName;
+                processedCount++;
+                String currentTblName = tables.get(tblIndex).getTableName().trim();
                 if (lastTable != null) {
+                    String lastTableName = lastTable.getTableName().trim();
+//                    System.out.printf("last: %1s current: %2s%n",
+//                            lastTableName.trim(), currentTblName.trim());   //String.format("last: %1$s current: ", lastTable.getTableName()));
                     sizedFileWriter.write(currentTblName);
                     sizedFileWriter.write(" on ");
-                    sizedFileWriter.write(lastTable.getTableName().trim());
+                    sizedFileWriter.write("DIF_IFRE_ASSETS");  //sizedFileWriter.write(lastTableName);
                     sizedFileWriter.write(".assetcode = ");
                     sizedFileWriter.write(currentTblName);
                     sizedFileWriter.write(".assetcode");
                    // sizedFileWriter.write(newLine);
 
-                    if (tblIndex != validTableCount - 1)
-                        sizedFileWriter.write(String.format("%n%s%n", joinType));
-                } else {
+                    if (processedCount != validTableCount )   //tblIndex != validTableCount - 1)
+                        sizedFileWriter.write(String.format(" %s%n", joinType));
+                } else { // first table
                     sizedFileWriter.write(currentTblName);
-                    sizedFileWriter.write(newLine);
-                    sizedFileWriter.write(String.format("%n%s%n", joinType));
+                    sizedFileWriter.write(String.format(" %s%n", joinType));
                 }
                 lastTable = tables.get(tblIndex);
             }
         }
-
+        sizedFileWriter.write(String.format("%nend%n"));
         sizedFileWriter.close();
     }
 
     // Insert statement
     private void writeInsertScript() throws Exception{
         sizedFileWriter.write("insert into " + normTableName + " (");
-
+        sizedFileWriter.write("importid, ");
         int totalTableColumns = uniColumnNames.size();
         int count = 0;
         for(Pair<String, Pair<String, String>> colnm : uniColumnNames) {

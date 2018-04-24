@@ -11,7 +11,6 @@ import java.io.OutputStream;
 
 public class SizedBufferWriter {
 
-
     private SizedBuffer buffer;
 
     @Autowired

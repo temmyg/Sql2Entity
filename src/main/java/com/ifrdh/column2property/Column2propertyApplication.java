@@ -2,11 +2,16 @@ package com.ifrdh.column2property;
 
 
 import com.ifrdh.column2property.Enrichment.EnrichmentScriptGenerator;
+import com.ifrdh.column2property.models.NormTablesEntity;
 import com.ifrdh.column2property.normalization.NormalizationScriptGenerator;
+import com.ifrdh.column2property.raoutputview.RAOutputViewGenerator;
+import com.ifrdh.column2property.raoutputview.RAAggregatedViewGenerator;
+import com.ifrdh.column2property.repositories.NormTablesRepo;
 import com.ifrdh.column2property.requirement_auto_generate.EnrichRequirementDBAdaptor;
-import com.ifrdh.column2property.requirement_auto_generate.IFREStagingEntitiesGenerator;
+import com.ifrdh.column2property.requirement_auto_generate.IFREEntityGenerator;
 import com.ifrdh.column2property.requirement_auto_generate.NomalizationRequirementDBAdaptor;
 import com.ifrdh.column2property.requirement_auto_generate.StagingRequirementDBTablesGenerator;
+import com.ifrdh.column2property.shadow_tables.ShadowTableCreationScriptGenerator;
 import com.ifrdh.column2property.utils.CodeHelper;
 import com.ifrdh.column2property.utils.GenerateType;
 import com.ifrdh.column2property.utils.SpecialColumnNameTreator;
@@ -39,6 +44,9 @@ public class Column2propertyApplication implements CommandLineRunner {
     FileWriter removeTableFileWriter;
 
     @Autowired
+    NormTablesRepo stagingTablesRepo;
+
+    @Autowired
     NormalizationScriptGenerator normGen;
 
     @Autowired
@@ -49,6 +57,9 @@ public class Column2propertyApplication implements CommandLineRunner {
 
     @Autowired
     EnrichRequirementDBAdaptor enrichRequirementDBAdaptor;
+
+    @Autowired
+    RAAggregatedViewGenerator raAggregatedViewGenerator;
 
     @Autowired
     CodeHelper codeHelper;
@@ -69,43 +80,75 @@ public class Column2propertyApplication implements CommandLineRunner {
     }
 
     public void run(String[] args) throws Exception {
+//        FileOutputStream file = new FileOutputStream("h:\\myoutput.txt");
+//        file.write("abac".getBytes());
+//        file.flush();
+//        file.close();
 
-        GenerateType generateType = GenerateType.Staging; //GenerateType.Entities; // GenerateType.NormalizationAndEnrichment;
+        GenerateType generateType = GenerateType.CreateShadowTables;  //GenerateType.GenerateEntityFromSqlScriptFile; //GenerateType.NormalizationAndEnrichment;  //GenerateType.Staging2;  //GenerateType.NormalizationAndEnrichment;  //GenerateType.RASortedView;  //GenerateType.Staging;   //GenerateType.NormalizationAndEnrichment; //GenerateType.GenerateEntity; //GenerateType.Staging; //GenerateType.NormalizationAndEnrichment;  //GenerateType.Staging2;   //GenerateType.RASortedView //GenerateType.NormalizationAndEnrichment  //GenerateType.Entities;    //.NormalizationAndEnrichment;   // GenerateType.RAOutputView;  //NormalizationAndEnrichment, GenerateType.Staging; //GenerateType.Initial; //GenerateType.Entities; // GenerateType.NormalizationAndEnrichment;
+        List<GenerateType> execSequence = new ArrayList<GenerateType>();
+     //   execSequence.add(GenerateType.Staging2);
+        execSequence.add(GenerateType.NormalizationAndEnrichment);
+        execSequence.add(GenerateType.GenerateEntityFromSqlScriptFile);
+        execSequence.add(GenerateType.RAAggregatedView);
 
-        switch (generateType) {
-            case Entities:
-                stagingScriptsEntities_gen();
-                break;
-            case Staging:
-                String scriptFilename = env.getProperty("requirementCombinedTableCreationScript");
-                //IFRE all staging table generate from requirement
-                stagingTablesGenerator.makeTablesCreationScript(scriptFilename);
-                IFREStagingEntitiesGenerator gen = new IFREStagingEntitiesGenerator();
+        for (GenerateType task : execSequence) {
+            switch (task) {
+                case CreateShadowTables:
+                    ShadowTableCreationScriptGenerator.writeScriptFiles();
+                    break;
+                case Staging2:
+                    String scriptFilename = env.getProperty("requirementCombinedTableCreationScript");
 
-                //make staging entities from RequirementCombinedTableCreationScript.sql
-                IFREStagingEntitiesGenerator.createStagingEntitiesFromScript(scriptFilename);
-                break;
-            case NormalizationAndEnrichment:
-                //Normalization
-                NomalizationRequirementDBAdaptor.process();
-                normGen.generateNormalizationScripts();
+                    //IFRE generate all staging table with column name left as is from requirement
+                    stagingTablesGenerator.makeTablesWithShadowCreationScript(scriptFilename);
 
-                List<Pair<String, Pair<String, String>>> normTableColumns = normGen.getUniColumnNames();
+                    //IFREEntityGenerator gen = new IFREEntityGenerator();
 
-                //Enrichment
-                enrichRequirementDBAdaptor.process();
+                    //make staging entities from RequirementCombinedTableCreationScript.sql
+                    IFREEntityGenerator.createStagingEntitiesFromScript(scriptFilename);
+                    break;
+                case Staging:
+                    staging_scripts_entities_gen();
+                    break;
+                case NormalizationAndEnrichment:
+                    //Normalization
+                    NomalizationRequirementDBAdaptor.preProcess();
+                    normGen.generateNormalizationScripts();
 
-                enrichmentScriptGenerator.makeEnrichmentScripts(normTableColumns);
-                break;
-            default:
-                break;
+                    List<Pair<String, Pair<String, String>>> normTableColumns = normGen.getUniColumnNames();
+
+                    //Enrichment
+//                enrichRequirementDBAdaptor.preProcess();
+                    enrichmentScriptGenerator.makeEnrichmentScripts(normTableColumns);
+                    break;
+                case RAAggregatedView:
+                    raAggregatedViewGenerator.generateViewScript();
+                    break;
+                case RAOutputView:
+                    //RAOutputViewGenerator gen = new RAOutputViewGenerator();
+                    //gen.generate();
+                    RAOutputViewGenerator.generate();
+                    break;
+                case GenerateEntityFromSqlScriptFile:
+                    //TODO:
+                    String fileName = "EnrichmentTableCreationScript.sql";
+                    IFREEntityGenerator.createStagingEntitiesFromScript(fileName);
+                    break;
+                default:
+                    break;
+            }
         }
     }
 
-    private void stagingScriptsEntities_gen() throws Exception {
+    private void staging_scripts_entities_gen() throws Exception {
 
         String srcFolder = env.getProperty("sourceFolder");
         File dir = new File(srcFolder);
+        List<NormTablesEntity> tables = stagingTablesRepo.findAll();
+        List<String> tableNames = new ArrayList<>();
+
+        tables.forEach(table -> tableNames.add(table.getTableName()));
 
         if (dir.isDirectory()) {
 
@@ -114,18 +157,22 @@ public class Column2propertyApplication implements CommandLineRunner {
             tablesScriptOutputStream = new FileOutputStream(env.getProperty("snakeCasedColumnTableScript"));
 
             File[] files = dir.listFiles();
+            String fileName;
             for (File file : files) {
 
                 originContent.clear();
                 entityCodeContent.clear();
+
+                fileName = file.getName();
+                //   if(tableNames.contains(fileName)) {
 
                 makeCodeFile(file.getPath());
                 writeImprovedTablesGeneratingScripts();
 
                 removeTableScript();
                 genDeleteScript();
-                generateCombinedScript(file);
-
+                //    }
+                // generateCombinedScript(file);
             }
 
             closeCombined();
@@ -160,7 +207,7 @@ public class Column2propertyApplication implements CommandLineRunner {
             while ((line = br.readLine()) != null) {
                 originContent.add(line);
                 // table name searching
-                if (line.indexOf("CREATE TABLE") != -1) {
+                if (line.toUpperCase().indexOf("CREATE TABLE") != -1) {
                     pattern = Pattern.compile("(?<=\\[dbo\\]\\.\\[)\\w+(?=\\])");
                     matcher = pattern.matcher(line);
                     matcher.find();
@@ -273,7 +320,8 @@ public class Column2propertyApplication implements CommandLineRunner {
     }
 
     private void genDeleteScript() throws Exception {
-        deleteFileWriter.append(String.format("truncate table %s %n", tableName));
+        if (tableName.startsWith("DIF_"))
+            deleteFileWriter.append(String.format("truncate table %s %n", tableName));
     }
 
     private void removeTableScript() throws Exception {
@@ -311,7 +359,7 @@ public class Column2propertyApplication implements CommandLineRunner {
                 line = SpecialColumnNameTreator.case1(line, columnSearch1);
             }
 
-
+            // convert space to underscore
             Pattern pattern = Pattern.compile("(?<=\\t\\[)[a-zA-Z_0-9 ]+(?=\\]\\s)");
             Matcher matcher = pattern.matcher(line);
             String underScoredLines = null;

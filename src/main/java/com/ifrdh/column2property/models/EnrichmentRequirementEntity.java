@@ -1,5 +1,7 @@
 package com.ifrdh.column2property.models;
 
+import com.ifrdh.column2property.utils.Table2View;
+
 import javax.persistence.*;
 
 @Entity
@@ -27,7 +29,7 @@ public class EnrichmentRequirementEntity {
 
 	private String iFRETableName;
 	public String getIFRETableName() {
-		return iFRETableName;
+		return Table2View.getViewName(iFRETableName);
 	}
 	public void setIFRETableName(String iFRETableName) {
 		this.iFRETableName = iFRETableName;
@@ -49,5 +51,14 @@ public class EnrichmentRequirementEntity {
 		this.isCalculated = isCalculated;
 	}
 
-} 
+	private Integer ordinalNumber;
+
+	public Integer getOrdinalNumber() {
+		return ordinalNumber;
+	}
+
+	public void setordinalNumber(Integer ordinalNumber) {
+		this.ordinalNumber = ordinalNumber;
+	}
+}
 

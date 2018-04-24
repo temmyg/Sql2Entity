@@ -21,7 +21,7 @@ public class NomalizationRequirementDBAdaptor {
     @Autowired
     private static NormTablesRepo tablesRepo;
 
-    public static void process() {
+    public static void preProcess() {
         List<IFREStagingColumnsEntity> columns = columnsRepo.findAll();
         int leng = columns.size();
 
@@ -33,19 +33,22 @@ public class NomalizationRequirementDBAdaptor {
             columnName = columnName.replace(' ', '_');
 
             tableName = column.getTable().getTableName();
-            //assetcode going to be not included in normalization table, it is going to be skiped in
-            if (columnName.toLowerCase() != "assetcode") {
-                switch (tableName.toUpperCase()) {
-                    case "IFRE_INVEQUIT":
-                    case "IFRE_ASCAP18":
-                        columnName = columnName.indexOf("CDN_") == 0 ? columnName : "CDN_" + columnName;
-                        break;
-                    case "IFRE_INVEQUITA":
-                    case "IFRE_ASCAP19":
-                        columnName = columnName.indexOf("CDN_") == 0 ? columnName : "CDN_" + columnName;
-                        break;
-                }
-            }
+
+            //TODO: improve column name like (TO BE CONVERTED, Investment_Aggregation_Grouped_Entity)
+
+            //assetcode going to be not included in normalization table, it is going to be skipped in
+//            if (columnName.toLowerCase() != "assetcode") {
+//                switch (tableName.toUpperCase()) {
+//                    case "IFRE_INVEQUIT":
+//                    case "IFRE_ASCAP18":
+//                        columnName = columnName.indexOf("CDN_") == 0 ? columnName : "CDN_" + columnName;
+//                        break;
+//                    case "IFRE_INVEQUITA":
+//                    case "IFRE_ASCAP19":
+//                        columnName = columnName.indexOf("CDN_") == 0 ? columnName : "CDN_" + columnName;
+//                        break;
+//                }
+//            }
             column.setColumnName(columnName);
         }
 

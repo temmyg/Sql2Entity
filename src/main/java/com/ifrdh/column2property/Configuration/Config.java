@@ -18,4 +18,18 @@ public class Config {
     public SizedBufferWriter getEnrichWriter(@Value("${enrichmentScriptFile}")String fileName) throws Exception {
         return new SizedBufferWriter(fileName);
     }
+
+    @Bean(name="ImportingTableNames")
+    public String[] tableNames(){
+        return new String[] {
+                "DIF_IFRE_DF2",
+                "DIF_IFRE_Assets",
+                "DIF_ASCAP19",  "DIF_ASCAP18", "DIF_IFRE_Total", "DIF_IFRE_Ownership",
+                "DIF_IFRE_AssetPredMaturityDate", "DIF_IFRE_AssetDebtMaturityDate", "DIF_IFRE_AssetValuationEffDate",
+                "DIF_IFRE_FX", "DIF_IFRE_INVEQUIT_A",
+                "DIF_IFRE_INVEQUIT",
+                "DIF_IFRE_ALPHOL",
+                "DIF_IFRE_DF3"
+        };
+    }
 }

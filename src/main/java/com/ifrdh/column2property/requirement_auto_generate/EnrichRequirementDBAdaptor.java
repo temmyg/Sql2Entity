@@ -19,7 +19,7 @@ public class EnrichRequirementDBAdaptor {
 
     String columnSearch1 = "Investment Aggregation - Grouped Entity";
 
-    public void process() {
+    public void preProcess() {
         List<EnrichmentRequirementEntity> alllines = repo.findAll();
         List<EnrichmentRequirementEntity> newEntities = new ArrayList<>();
 
@@ -57,7 +57,7 @@ public class EnrichRequirementDBAdaptor {
                     newName = colNameArr[i];
                     addCol = new EnrichmentRequirementEntity();
                     newName = newName.trim();
-                    addCol.setColumnName(handleKnownDuplicateColName(newName, tableName));
+                    addCol.setColumnName(newName);   //handleKnownDuplicateColName(newName, tableName)
                     addCol.setIFRETableName(enrichEntity.getIFRETableName());
                     addCol.setIsCalculated(false);
                     newCols.add(addCol);
@@ -77,7 +77,7 @@ public class EnrichRequirementDBAdaptor {
             if (columnName.indexOf(" ") != -1) {
                 columnName = columnName.replace(" ", "_");
             }
-            enrichEntity.setColumnName(handleKnownDuplicateColName(columnName, tableName));
+            enrichEntity.setColumnName(columnName);  // handleKnownDuplicateColName(columnName, tableName)
             enrichEntity.setIsCalculated(BooleanUtils.isTrue(enrichEntity.getIsCalculated()));
         }
 

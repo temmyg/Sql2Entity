@@ -24,13 +24,14 @@ public class IFREStagingColumnsEntity { //IFREStagingColumnsEntity
 		this.columnName = columnName;
 	}
 
-//	private String originalTable;
-//	public String getOriginalTable() {
-//		return originalTable;
-//	}
-//	public void setOriginalTable(String originalTable) {
-//		this.originalTable = originalTable;
-//	}
+	private String originalTable;
+	@Column(insertable = false, updatable = false)
+	public String getOriginalTable() {
+		return originalTable;
+	}
+	public void setOriginalTable(String originalTable) {
+		this.originalTable = originalTable;
+	}
 
 	private String dataType;
 	public String getDataType() {
@@ -52,15 +53,16 @@ public class IFREStagingColumnsEntity { //IFREStagingColumnsEntity
 		this.table = table;
 	}
 
-	private int dataFieldOrdinalNo;
+	private Integer dataFieldOrdinalNo;
 
-	public int getDataFieldOrdinalNo() {
+	public Integer getDataFieldOrdinalNo() {
 		return dataFieldOrdinalNo;
 	}
 
-	public void setDataFieldOrdinalNo(int dataFieldOrdinalNo) {
+	public void setDataFieldOrdinalNo(Integer dataFieldOrdinalNo) {
 		this.dataFieldOrdinalNo = dataFieldOrdinalNo;
 	}
+
 //	@JoinColumn(name = "originalTable")
 //	@ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
 //	public NormTablesEntity getTable() {

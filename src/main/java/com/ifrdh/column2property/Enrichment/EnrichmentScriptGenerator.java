@@ -47,10 +47,12 @@ public class EnrichmentScriptGenerator {
         String colName, tblName;
         for (EnrichmentRequirementEntity col : enrichmentRequirementColumns) {
             colName = col.getColumnName();
-            tblName = col.getIFRETableName();
+            if(colName != null && !colName.toLowerCase().contains("calculated")) {
+                tblName = col.getIFRETableName();
 
-            colName = (colName + '_' + tblName).toLowerCase();
-            tableSuffixedEnrichColsMap.put(colName, col);
+                colName = (colName + '_' + tblName).toLowerCase();
+                tableSuffixedEnrichColsMap.put(colName, col);
+            }
         }
 
         // tableName suffixed ColumnName - Normlization Table Column name, source table name, sqltype
@@ -71,9 +73,12 @@ public class EnrichmentScriptGenerator {
             enrichCol = tableSuffixedEnrichColsMap.get(tableSuffixedColName);
             normCol = tableSuffixedNormColsMap.get(tableSuffixedColName);
             try {
+                // not calculated enrichrequirement column only
                 if (BooleanUtils.isFalse(enrichCol.getIsCalculated()))
-                    if (normCol == null)
-                        throw new Exception(String.format("Table Suffixed Enrich Column %s not found in  Normlization table", tableSuffixedColName));
+                    if (normCol == null)  // this column is not found in normalization requirement table
+                    {
+                        throw new Exception(String.format("Table Suffixed Enrich Column %s not found in  Normalization table", tableSuffixedColName));
+                    }
                     else
                         normalizationEnrichmentMapping.put(normCol.getKey(), normCol.getValue());
             } catch (Exception ex) {
@@ -81,46 +86,21 @@ public class EnrichmentScriptGenerator {
             }
         }
 
-//        for(Pair<String, String> col : normColumns){
-//            // always add lowercase value as key
-//            standardizedNormColumns.put(col.getKey() + '_' + col.getValue(), new Pair<>());
-//        }
-
-//        String colName, requirementColName, tblName;
-//        Pair<String, Boolean> enrichCol;
-//
-//        for (Pair<String, String> normCol : normColumns) {
-//            try {
-//                colName = normCol.getKey();
-//                tblName = normCol.getValue();
-//
-//                // requirementColName only has column name, it does not have (underscore + table name) suffix
-//                requirementColName = removeTblName(colName, tblName);
-//                enrichCol = enrichedColumns.get(requirementColName);
-//
-//                if (enrichCol == null)
-//                    throw new Exception(String.format("%s not found in Enrich Columns", requirementColName));
-//
-//                if (BooleanUtils.isFalse(enrichCol.getValue()))
-//                    normalizationEnrichmentMapping.put(colName, requirementColName);
-//            } catch (Exception e) {
-//                int i1 = 0;
-//            }
-//
-//        }
-
-        makeCreateTableScript(enrichmentRequirementColumns);
+        makeCreateTableScript(enrichmentRequirementColumns, tableSuffixedNormColsMap);
 
         makeInsertionEnrichmentScript();
     }
 
-    public void makeCreateTableScript(List<EnrichmentRequirementEntity> enrichmentRequirementColumns) throws Exception {
+    public void makeCreateTableScript(List<EnrichmentRequirementEntity> enrichmentRequirementColumns, Map<String, Pair<String, Pair<String, String>>>  tableSuffixedNormCols) throws Exception {
 
         PrintStream fileAppender = new PrintStream(env.getProperty("enrichmentTableCreationScript"));
 
         fileAppender.println("Use " + env.getProperty("databaseName"));
         fileAppender.println(String.format("Drop Table %s%n", enrichmentTableName));
-        fileAppender.println(String.format("Create Table %s (", enrichmentTableName));
+        fileAppender.println(String.format("CREATE TABLE %s (", enrichmentTableName));
+        fileAppender.println(String.format("\tImportId bigint,"));
+        fileAppender.println(String.format("\tID bigint IDENTITY(1,1) NOT NULL,"));
+        fileAppender.println(String.format("\tCONSTRAINT PK_%s PRIMARY KEY CLUSTERED (%s),", enrichmentTableName, "ID"));
 
         int i = 0;
         for (String normColName : normalizationEnrichmentMapping.keySet()) {
@@ -132,9 +112,15 @@ public class EnrichmentScriptGenerator {
                 fileAppender.println(",");
         }
 
+        // Add Calculation properties
         String columnName = null, presentationName;
-        int calculatedTotal = 16;
+        int calculatedTotal = 0;
+        for(EnrichmentRequirementEntity col : enrichmentRequirementColumns){
+            if(col.getIsCalculated())
+                calculatedTotal++;
+        }
         int colCount = 0;
+        String sqlType = "float";
         for (EnrichmentRequirementEntity col : enrichmentRequirementColumns) {
             if (col.getIsCalculated()) {
                 colCount++;
@@ -142,7 +128,9 @@ public class EnrichmentScriptGenerator {
                 presentationName = col.getPresentationName();
                 if (columnName.indexOf("calculated") != -1)
                     columnName = presentationName.replace("(", "").replace(")", "").replace(" ", "_");
-                fileAppender.print(String.format("\t%s %s", columnName, "float"));
+                //TODO: data type
+                sqlType = getSqlType(columnName, tableSuffixedNormCols);
+                fileAppender.print(String.format("\t%s %s", columnName, sqlType));
                 if(colCount!=calculatedTotal)
                     fileAppender.println(",");
                 else
@@ -154,8 +142,13 @@ public class EnrichmentScriptGenerator {
     }
 
     public void makeInsertionEnrichmentScript() throws Exception {
-
+        enrichInsertScriptFile.write(String.format("ALTER procedure [dbo].[LoadEnrichmentTable] as%n"));
+        enrichInsertScriptFile.write(String.format("begin%n"));
+        enrichInsertScriptFile.write(String.format("set nocount on%n%n"));
+        enrichInsertScriptFile.write(String.format("declare @importid bigint%n"));
+        enrichInsertScriptFile.write(String.format(" select  @importid = max(importid) from dbo.IFRDH_Import where importtype = 'REImport'%n%n"));
         enrichInsertScriptFile.write(String.format("Insert Into %s (", enrichmentTableName));
+        enrichInsertScriptFile.write("importid,");
 
         String colName;
         int totalCols = normalizationEnrichmentMapping.size();
@@ -169,7 +162,7 @@ public class EnrichmentScriptGenerator {
                 enrichInsertScriptFile.write(")");
         }
         enrichInsertScriptFile.write("\r\n Select ");
-
+        enrichInsertScriptFile.write("@importid, ");
         loop = 0;
         for (Map.Entry entry : normalizationEnrichmentMapping.entrySet()) {
             loop++;
@@ -180,7 +173,26 @@ public class EnrichmentScriptGenerator {
                 enrichInsertScriptFile.write(" ");
         }
 
-        enrichInsertScriptFile.write(String.format(" From %s ", normalizationTableName));
+        enrichInsertScriptFile.write(String.format(" From %s where ilevel_dif_ifre_assets = 'IL'%n", normalizationTableName));
+        enrichInsertScriptFile.write(String.format("update Enrichment_PhaseII set assetcode_1 = assetcode;%n"));
+        enrichInsertScriptFile.write(String.format("end%n"));
         enrichInsertScriptFile.close();
+    }
+
+    // table suffixed column name, normalization table column name, source table, sql data type
+    private String getSqlType(String columnName, Map<String, Pair<String, Pair<String, String>>> table_suffixed_normCols){
+        String sqlType = "float";
+        columnName = columnName.toLowerCase();
+        if(columnName.indexOf("assetcode")!=-1)
+            sqlType = table_suffixed_normCols.get("assetcode_dif_ifre_assets").getValue().getValue();
+        if(columnName.indexOf("investment_type")!=-1)
+            sqlType = table_suffixed_normCols.get("sector_focus_dif_ifre_df2").getValue().getValue();
+        if(columnName.indexOf("business_group")!=-1)
+            sqlType = "varchar(50)";
+        if(columnName.indexOf("business_sub_group")!=-1)
+            sqlType = table_suffixed_normCols.get("business_unit_dif_ifre_df2").getValue().getValue();
+        if(columnName.indexOf("investment_reporting_currency")!=-1)
+            sqlType = table_suffixed_normCols.get("reportingcurrencyal_dif_ifre_assets").getValue().getValue();
+        return sqlType;
     }
 }
